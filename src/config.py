@@ -1,17 +1,18 @@
 from pathlib import Path
+import torch
 
 # ========================
 # PROJECT PATHS
 # ========================
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+IMAGE_DIR = r"C:\Users\gabe7\Downloads\Fundus_Dataset\Labels\Temporal\Peak_and_trough\images"
+MASK_DIR = r"C:\Users\gabe7\Downloads\Fundus_Dataset\Labels\Temporal\Peak_and_trough\masks"
+METADATA = r"C:\Users\gabe7\Downloads\Fundus_Dataset\Labels\Temporal\Peak_and_trough\Metadata.json"
 
-DATASET_DIR = PROJECT_ROOT / "dataset"
-RESULTS_DIR = PROJECT_ROOT / "results"
-
-TRAIN_IMAGES_DIR = DATASET_DIR / "train/images"
-TRAIN_MASKS_DIR  = DATASET_DIR / "train/masks"
-
-VAL_IMAGES_DIR = DATASET_DIR / "val/images"
-VAL_MASKS_DIR  = DATASET_DIR / "val/masks"
-
-TEST_IMAGES_DIR = DATASET_DIR / "test/images"
+# ========================
+# Hyperparameters
+# ========================
+print(f'Device Available: {torch.cuda.is_available()}')
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+EPOCHS = 10
+LEARNING_RATE = 0.001
