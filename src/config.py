@@ -14,5 +14,7 @@ METADATA = r"C:\Users\gabe7\Downloads\Fundus_Dataset\Labels\Temporal\Peak_and_tr
 # ========================
 print(f'Device Available: {torch.cuda.is_available()}')
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+NUM_WORKERS = 4
 EPOCHS = 10
 LEARNING_RATE = 0.001
+BATCH_SIZE = 12
