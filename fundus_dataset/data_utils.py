@@ -6,9 +6,9 @@ import json
 
 class DataUtils:
     def __init__(self):
-        self.metadata = self.load_data()
+        self.metadata = self.load_metadata()
 
-    def load_data(self):
+    def load_metadata(self):
         # Load JSON into a Python dict
         with open(METADATA, 'r') as f:
             metadata = json.load(f)
