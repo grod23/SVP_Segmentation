@@ -1,21 +1,15 @@
 import torch.cuda
-
-from fundus_dataset import IMAGE_DIR, MASK_DIR, METADATA, BATCH_SIZE, NUM_WORKERS
+from fundus_dataset import TRAIN_SPLIT, METADATA, BATCH_SIZE, NUM_WORKERS
 from monai.data import DataLoader, PersistentDataset
 import json
+import joblib
 
 class DataUtils:
     def __init__(self):
-        self.metadata = self.load_metadata()
-
-    def load_metadata(self):
-        # Load JSON into a Python dict
-        with open(METADATA, 'r') as f:
-            metadata = json.load(f)
-        return metadata
+        self.train_split = TRAIN_SPLIT
 
     def load_split(self):
-        train, validation, test = 0, 0, 0
+        train, validation, test = joblib.load(self.train_split)
         return train, validation, test
 
     def create_datasets(self):
