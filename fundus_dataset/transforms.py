@@ -3,8 +3,9 @@ from monai.transforms import (
     Compose, LoadImaged, EnsureChannelFirstd, Spacingd, EnsureTyped, NormalizeIntensityd, Resized,
     DeleteItemsd, RandRotate90d,  RandFlipd, ScaleIntensityRanged, RandShiftIntensityd, RandGaussianNoised,
     RandGaussianSmoothd, RandScaleIntensityd)
-from fundus_dataset import DEVICE, IMAGE_SIZE
+from fundus_dataset import IMAGE_SIZE
 
+"""Transformation class for loading MONAI transform compositions to PyTorch datasets"""
 class Transform:
     def __init__(self):
         self.train_transform = self.load_train_transforms()
@@ -18,20 +19,21 @@ class Transform:
             LoadImaged(
                 keys=['Image', 'Mask'],
                 dtype=torch.float32,
-                meta_keys='Metadata',
+                meta_keys='Metadata',  # Stores metadata in this key
                 reader='ITKReader',
-                image_only=False,  # Image_only provides metadata for spacing info
-                ensure_channel_first=True
+                image_only=False,  # Image_only provides metadata
+                ensure_channel_first=True  # Ensures correct channel format (Channels, Height, Width)
             ),
-            EnsureChannelFirstd(
-                keys=['Image', 'Mask']  # Ensures correct channel format (Channels, Depth, Height, Width)
-            ),
+            # EnsureChannelFirstd(
+            #     keys=['Image', 'Mask']  # Ensures correct channel format (Channels, Height, Width)
+            # ),
             # ─────────────────────────────────────────────────────────────
             # STAGE 2: SPATIAL PREPROCESSING
             # ─────────────────────────────────────────────────────────────
             Resized(
                 keys=['Image', 'Mask'],
-                spatial_size=IMAGE_SIZE
+                spatial_size=IMAGE_SIZE,
+                mode=['bilinear', 'nearest']
             ),
             # ─────────────────────────────────────────────────────────────
             # STAGE 3: INTENSITY PREPROCESSING
@@ -41,51 +43,22 @@ class Transform:
                 nonzero=True,
                 channel_wise=False
             ),
+            ScaleIntensityRanged(
+                keys=['Image'],
+                a_min=0, a_max=255,
+                b_min=0.0, b_max=1.0,
+                clip=True
+            ),
             # ─────────────────────────────────────────────────────────────
             # STAGE 4: DATA AUGMENTATION (TRAINING ONLY)
             # ─────────────────────────────────────────────────────────────
-            # Spatial augmentations
-            # RandRotate90d(
-            #     keys=["Folder Path"],
-            #     prob=0.3,
-            #     spatial_axes=(0, 1)  # Only rotate in axial plane
-            # ),
-            # RandFlipd(
-            #     keys=["Folder Path"],
-            #     prob=0.3,
-            #     spatial_axis=0  # Left-right flip
-            # ),
-            # # Intensity augmentations (helps with scanner variability)
-            # RandScaleIntensityd(
-            #     keys=["Folder Path"],
-            #     factors=0.2,  # ±20% intensity scaling
-            #     prob=0.2
-            # ),
-            # RandShiftIntensityd(
-            #     keys=["Folder Path"],
-            #     offsets=0.1,  # Small intensity shifts
-            #     prob=0.2
-            # ),
-            # RandGaussianNoised(
-            #     keys=["Folder Path"],
-            #     prob=0.2,
-            #     mean=0.0,
-            #     std=0.05  # Small random noise
-            # ),
-            # RandGaussianSmoothd(  # Random smoothing
-            #     keys=["Folder Path"],
-            #     prob=0.2,
-            #     sigma_x=(0.5, 1.0),
-            #     sigma_y=(0.5, 1.0),
-            #     sigma_z=(0.5, 1.0)
-            # ),
+
             # ─────────────────────────────────────────────────────────────
             # STAGE 5: Tensor Conversion
             # ─────────────────────────────────────────────────────────────
             EnsureTyped(
                 keys=['Image', 'Mask'],
                 dtype=torch.float32,
-                device=DEVICE,
                 track_meta=False,
                 allow_missing_keys=False
             )
@@ -102,20 +75,21 @@ class Transform:
             LoadImaged(
                 keys=['Image', 'Mask'],
                 dtype=torch.float32,
-                meta_keys='Metadata',
+                meta_keys='Metadata',  # Stores metadata in this key
                 reader='ITKReader',
-                image_only=False,  # Image_only provides metadata for spacing info
-                ensure_channel_first=True
+                image_only=False,  # Image_only provides metadata
+                ensure_channel_first=True  # Ensures correct channel format (Channels, Height, Width)
             ),
-            EnsureChannelFirstd(
-                keys=['Image', 'Mask']  # Ensures correct channel format (Channels, Depth, Height, Width)
-            ),
+            # EnsureChannelFirstd(
+            #     keys=['Image', 'Mask']  # Ensures correct channel format (Channels, Depth, Height, Width)
+            # ),
             # ─────────────────────────────────────────────────────────────
             # STAGE 2: SPATIAL PREPROCESSING
             # ─────────────────────────────────────────────────────────────
             Resized(
                 keys=['Image', 'Mask'],
-                spatial_size=IMAGE_SIZE
+                spatial_size=IMAGE_SIZE,
+                mode=['bilinear', 'nearest']
             ),
             # ─────────────────────────────────────────────────────────────
             # STAGE 3: INTENSITY PREPROCESSING
@@ -125,13 +99,18 @@ class Transform:
                 nonzero=True,
                 channel_wise=False
             ),
+            ScaleIntensityRanged(
+                keys=['Image'],
+                a_min=0, a_max=255,
+                b_min=0.0, b_max=1.0,
+                clip=True
+            ),
             # ─────────────────────────────────────────────────────────────
             # STAGE 5: Tensor Conversion
             # ─────────────────────────────────────────────────────────────
             EnsureTyped(
                 keys=['Image', 'Mask'],
                 dtype=torch.float32,
-                device=DEVICE,
                 track_meta=False,
                 allow_missing_keys=False
             )

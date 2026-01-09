@@ -1,14 +1,15 @@
-import torch.cuda
-from fundus_dataset import METADATA, TRAIN_SPLIT, BATCH_SIZE, NUM_WORKERS
+import torch
+from fundus_dataset import METADATA, TRAIN_SPLIT, BATCH_SIZE, NUM_WORKERS, CACHE_DIR, Transform
 from monai.data import DataLoader, PersistentDataset
 import json
 import joblib
 
-
+"""Utility class for loading datasets and creating PyTorch DataLoaders."""
 class DataUtils:
     def __init__(self):
         self.train_split = TRAIN_SPLIT
         self.metadata = METADATA
+        self.transform = Transform()
 
     def load_metadata(self):
         # Load JSON into a Python dict
@@ -24,15 +25,18 @@ class DataUtils:
         train, validation, test = self.load_split()
         train_dataset = PersistentDataset(
             data=train,
-            transform=
+            transform=self.transform.train_transform,
+            cache_dir=CACHE_DIR
         )
         validation_dataset = PersistentDataset(
             data=validation,
-            transform=
+            transform=self.transform.test_transform,
+            cache_dir=CACHE_DIR
         )
         test_dataset = PersistentDataset(
             data=test,
-            transform=
+            transform=self.transform.test_transform,
+            cache_dir=CACHE_DIR
         )
         return train_dataset, validation_dataset, test_dataset
 
@@ -45,7 +49,7 @@ class DataUtils:
             num_workers=NUM_WORKERS,
             pin_memory=torch.cuda.is_available(),
             collate_fn=None,
-            persistent_workers=True
+            persistent_workers=NUM_WORKERS > 0
         )
         validation_loader = DataLoader(
             dataset=validation_dataset,
@@ -54,16 +58,16 @@ class DataUtils:
             num_workers=NUM_WORKERS,
             pin_memory=torch.cuda.is_available(),
             collate_fn=None,
-            persistent_workers=True
+            persistent_workers=NUM_WORKERS > 0
         )
         test_loader = DataLoader(
-            dataset=validation_dataset,
+            dataset=test_dataset,
             batch_size=BATCH_SIZE,
             shuffle=False,
             num_workers=NUM_WORKERS,
             pin_memory=torch.cuda.is_available(),
             collate_fn=None,
-            persistent_workers=True
+            persistent_workers=NUM_WORKERS > 0
         )
         return train_loader, validation_loader, test_loader
 
