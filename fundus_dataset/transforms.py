@@ -1,9 +1,9 @@
+from src.config import IMAGE_SIZE, IMAGE_KEY, MASK_KEY
 import torch
 from monai.transforms import (
-    Compose, LoadImaged, EnsureChannelFirstd, Spacingd, EnsureTyped, NormalizeIntensityd, Resized,
+    Compose, LoadImaged, EnsureTyped, NormalizeIntensityd, Resized,
     DeleteItemsd, RandRotate90d,  RandFlipd, ScaleIntensityRanged, RandShiftIntensityd, RandGaussianNoised,
     RandGaussianSmoothd, RandScaleIntensityd)
-from fundus_dataset import IMAGE_SIZE
 
 """Transformation class for loading MONAI transform compositions to PyTorch datasets"""
 class Transform:
@@ -17,11 +17,11 @@ class Transform:
             # STAGE 1: LOADING & BASIC PREPROCESSING
             # ─────────────────────────────────────────────────────────────
             LoadImaged(
-                keys=['Image', 'Mask'],
+                keys=[IMAGE_KEY, MASK_KEY],
                 dtype=torch.float32,
-                meta_keys='Metadata',  # Stores metadata in this key
-                reader='ITKReader',
-                image_only=False,  # Image_only provides metadata
+                # meta_keys='Metadata',  # Stores metadata in this key
+                reader='PILReader',
+                image_only=True,  # Image_only provides metadata
                 ensure_channel_first=True  # Ensures correct channel format (Channels, Height, Width)
             ),
             # EnsureChannelFirstd(
@@ -31,24 +31,24 @@ class Transform:
             # STAGE 2: SPATIAL PREPROCESSING
             # ─────────────────────────────────────────────────────────────
             Resized(
-                keys=['Image', 'Mask'],
+                keys=[IMAGE_KEY, MASK_KEY],
                 spatial_size=IMAGE_SIZE,
                 mode=['bilinear', 'nearest']
             ),
             # ─────────────────────────────────────────────────────────────
             # STAGE 3: INTENSITY PREPROCESSING
             # ─────────────────────────────────────────────────────────────
-            NormalizeIntensityd(  # Z-Score Normalization (data - mean) / std_dev
-                keys=['Image'],
-                nonzero=True,
-                channel_wise=False
-            ),
-            ScaleIntensityRanged(
-                keys=['Image'],
-                a_min=0, a_max=255,
-                b_min=0.0, b_max=1.0,
-                clip=True
-            ),
+            # NormalizeIntensityd(  # Z-Score Normalization (data - mean) / std_dev
+            #     keys=['Image'],
+            #     nonzero=True,
+            #     channel_wise=False
+            # ),
+            # ScaleIntensityRanged(
+            #     keys=['Image'],
+            #     a_min=0, a_max=255,
+            #     b_min=0.0, b_max=1.0,
+            #     clip=True
+            # ),
             # ─────────────────────────────────────────────────────────────
             # STAGE 4: DATA AUGMENTATION (TRAINING ONLY)
             # ─────────────────────────────────────────────────────────────
@@ -57,7 +57,7 @@ class Transform:
             # STAGE 5: Tensor Conversion
             # ─────────────────────────────────────────────────────────────
             EnsureTyped(
-                keys=['Image', 'Mask'],
+                keys=[IMAGE_KEY, MASK_KEY],
                 dtype=torch.float32,
                 track_meta=False,
                 allow_missing_keys=False
@@ -73,11 +73,11 @@ class Transform:
             # STAGE 1: LOADING & BASIC PREPROCESSING
             # ─────────────────────────────────────────────────────────────
             LoadImaged(
-                keys=['Image', 'Mask'],
+                keys=[IMAGE_KEY, MASK_KEY],
                 dtype=torch.float32,
-                meta_keys='Metadata',  # Stores metadata in this key
-                reader='ITKReader',
-                image_only=False,  # Image_only provides metadata
+                # meta_keys='Metadata',  # Stores metadata in this key
+                reader='PILReader',
+                image_only=True,  # Image_only provides metadata
                 ensure_channel_first=True  # Ensures correct channel format (Channels, Height, Width)
             ),
             # EnsureChannelFirstd(
@@ -87,29 +87,29 @@ class Transform:
             # STAGE 2: SPATIAL PREPROCESSING
             # ─────────────────────────────────────────────────────────────
             Resized(
-                keys=['Image', 'Mask'],
+                keys=[IMAGE_KEY, MASK_KEY],
                 spatial_size=IMAGE_SIZE,
                 mode=['bilinear', 'nearest']
             ),
             # ─────────────────────────────────────────────────────────────
             # STAGE 3: INTENSITY PREPROCESSING
             # ─────────────────────────────────────────────────────────────
-            NormalizeIntensityd(  # Z-Score Normalization (data - mean) / std_dev
-                keys=['Image'],
-                nonzero=True,
-                channel_wise=False
-            ),
-            ScaleIntensityRanged(
-                keys=['Image'],
-                a_min=0, a_max=255,
-                b_min=0.0, b_max=1.0,
-                clip=True
-            ),
+            # NormalizeIntensityd(  # Z-Score Normalization (data - mean) / std_dev
+            #     keys=['Image'],
+            #     nonzero=True,
+            #     channel_wise=False
+            # ),
+            # ScaleIntensityRanged(
+            #     keys=['Image'],
+            #     a_min=0, a_max=255,
+            #     b_min=0.0, b_max=1.0,
+            #     clip=True
+            # ),
             # ─────────────────────────────────────────────────────────────
             # STAGE 5: Tensor Conversion
             # ─────────────────────────────────────────────────────────────
             EnsureTyped(
-                keys=['Image', 'Mask'],
+                keys=[IMAGE_KEY, MASK_KEY],
                 dtype=torch.float32,
                 track_meta=False,
                 allow_missing_keys=False

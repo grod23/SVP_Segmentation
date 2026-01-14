@@ -1,8 +1,11 @@
 import torch
-from fundus_dataset import METADATA, TRAIN_SPLIT, BATCH_SIZE, NUM_WORKERS, CACHE_DIR, Transform
+from src.config import METADATA, TRAIN_SPLIT, BATCH_SIZE, NUM_WORKERS, CACHE_DIR
+from fundus_dataset import Transform
 from monai.data import DataLoader, PersistentDataset
 import json
 import joblib
+import shutil
+import os
 
 """Utility class for loading datasets and creating PyTorch DataLoaders."""
 class DataUtils:
@@ -16,6 +19,12 @@ class DataUtils:
         with open(self.metadata, 'r') as f:
             metadata = json.load(f)
         return metadata
+
+    def clear_cache(self):
+        # Reset cache directory
+        if os.path.exists(CACHE_DIR):
+            print('Clearing Cache Directory')
+            shutil.rmtree(CACHE_DIR)
 
     def load_split(self):
         train, validation, test = joblib.load(self.train_split)
