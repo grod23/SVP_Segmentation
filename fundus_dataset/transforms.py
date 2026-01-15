@@ -21,7 +21,7 @@ class Transform:
                 dtype=torch.float32,
                 # meta_keys='Metadata',  # Stores metadata in this key
                 reader='PILReader',
-                image_only=True,  # Image_only provides metadata
+                image_only=False,  # Image_only provides metadata
                 ensure_channel_first=True  # Ensures correct channel format (Channels, Height, Width)
             ),
             # EnsureChannelFirstd(

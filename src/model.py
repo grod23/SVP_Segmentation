@@ -1,9 +1,10 @@
+from src.config import IMAGE_SIZE, IN_CHANNELS, OUT_CHANNELS, SPATIAL_DIMS
 from monai.networks.nets import (
     UNet, AttentionUnet, SegResNetDS, DynUNet, BasicUNetPlusPlus, FlexibleUNet,
     UNETR, SwinUNETR
 )
 import torch.nn as nn
-from src import IMAGE_SIZE, IN_CHANNELS, OUT_CHANNELS
+
 
 class Backbone(nn.Module):
     def __init__(self, backbone_name):
@@ -11,7 +12,7 @@ class Backbone(nn.Module):
         self.backbone_name = backbone_name.lower()
         if self.backbone_name == 'unet':
             self.backbone = UNet(
-                spatial_dims=2,
+                spatial_dims=SPATIAL_DIMS,
                 in_channels=IN_CHANNELS,
                 out_channels=OUT_CHANNELS,
                 channels=(16, 32, 64, 128, 256),
@@ -20,7 +21,7 @@ class Backbone(nn.Module):
             )
         elif self.backbone_name == 'attentionunet':
             self.backbone = AttentionUnet(
-                spatial_dims=2,
+                spatial_dims=SPATIAL_DIMS,
                 in_channels=IN_CHANNELS,
                 out_channels=OUT_CHANNELS,
                 channels=(16, 32, 64, 128, 256),
@@ -28,11 +29,9 @@ class Backbone(nn.Module):
             )
         elif self.backbone_name == 'segresnetds':
             self.backbone = SegResNetDS(
-                spatial_dims=2,
+                spatial_dims=SPATIAL_DIMS,
                 in_channels=IN_CHANNELS,
                 out_channels=OUT_CHANNELS,
-                blocks_down=[1, 2, 2, 4],
-                blocks_up=[1, 1, 1]
             )
         elif self.backbone_name == 'dynunet':
             self.backbone = DynUNet(
@@ -57,6 +56,8 @@ class Backbone(nn.Module):
                 out_channels=OUT_CHANNELS
             )
 
+    def forward(self, X_image):
+        return self.backbone(X_image)
 
 class Segmentation_Model(nn.Module):
     def __init__(self, backbone_name):
@@ -65,6 +66,6 @@ class Segmentation_Model(nn.Module):
 
 
     def forward(self, X_image):
-        y = self.backbone(X_image)
-        return y
+        return self.backbone(X_image)
+
 

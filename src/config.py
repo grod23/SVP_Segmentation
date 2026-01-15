@@ -20,7 +20,7 @@ MASK_KEY = 'Mask'
 # Hyperparameters
 # ========================
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-NUM_WORKERS = 4
+NUM_WORKERS = 0
 EPOCHS = 10
 LEARNING_RATE = 0.001
 BATCH_SIZE = 12
@@ -32,4 +32,6 @@ IMAGE_SIZE = (512, 512)
 # ========================
 IN_CHANNELS = 3
 OUT_CHANNELS = 1
+SPATIAL_DIMS = 2
+
 

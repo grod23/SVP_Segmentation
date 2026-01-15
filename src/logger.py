@@ -41,7 +41,7 @@ class Logger:
         blended = blend_images(
             image=image,
             label=mask,
-            alpha=0.8
+            alpha=0.4
         )
 
         # Convert each image from [C, H, W] to [H, W, C] and to numpy
