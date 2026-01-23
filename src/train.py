@@ -39,7 +39,7 @@ class Train:
         for _ in range(batches):
             batch = next(iter(self.training_loader))
             self.logger.visualize_batch(batch)
-            self.logger.clear_tensorboard()
+            # self.logger.clear_tensorboard()
 
 
     def run_epoch(self):
@@ -48,6 +48,7 @@ class Train:
             self.optimizer.zero_grad()
             X_image_batch = batch[IMAGE_KEY]
             y_mask_batch = batch[MASK_KEY]
+            y_mask_batch = y_mask_batch[:, 0:1, :, :]  # take one channel
             print(f'X Shape: {X_image_batch.shape}')
             print(f'Y Shape: {y_mask_batch.shape}')
             # Conver to GPU
@@ -55,10 +56,13 @@ class Train:
             y_mask_batch = y_mask_batch.to(DEVICE)
             # Get predicted mask
             y_predicted = self.model(X_image_batch)
-            print(f'Y Pred Sha[e: {y_predicted.shape}')
+            print(f'Y Pred Shape: {y_predicted.shape}')
             loss = self.loss_fn(y_predicted, y_mask_batch)
             loss.backward()
             self.optimizer.step()
+
+            print(f'Loss: {loss.item()}')
+            self.logger.plot_sample(y_predicted[0])
 
 
 

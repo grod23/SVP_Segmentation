@@ -17,6 +17,18 @@ class Logger:
             print('Clearing Tensorboard Cache...')
             shutil.rmtree(TENSORBOARD_DIR)
 
+    def prep_sample(self, sample):
+        sample = sample.permute(1, 2, 0)
+        sample = sample.detach().cpu().numpy()
+        return sample
+
+    def plot_sample(self, sample):
+        sample_prepped = self.prep_sample(sample)
+        plt.figure(figsize=(10, 10))
+        plt.title("Image")
+        plt.imshow(sample_prepped)
+        plt.axis("off")
+
     def visualize_batch(self, batch):
         image_batch = batch[IMAGE_KEY]
         mask_batch = batch[MASK_KEY]
@@ -45,12 +57,9 @@ class Logger:
         )
 
         # Convert each image from [C, H, W] to [H, W, C] and to numpy
-        mask = mask.permute(1, 2, 0)
-        mask = mask.detach().cpu().numpy()
-        image = image.permute(1, 2, 0)
-        image = image.detach().cpu().numpy()
-        blended = blended.permute(1, 2, 0)
-        blended = blended.detach().cpu().numpy()
+        mask = self.prep_sample(mask)
+        image = self.prep_sample(image)
+        blended = self.prep_sample(blended)
 
         # Plot image, mask, and overlay
         # plot_2d_or_3d_image(
