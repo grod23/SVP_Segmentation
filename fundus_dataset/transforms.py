@@ -39,12 +39,12 @@ class Transform:
             #     nonzero=True,
             #     channel_wise=False
             # ),
-            ScaleIntensityRanged(
-                keys=[IMAGE_KEY, MASK_KEY],
-                a_min=0, a_max=255,
-                b_min=0.0, b_max=1.0,
-                clip=True
-            ),
+            # ScaleIntensityRanged(
+            #     keys=[IMAGE_KEY, MASK_KEY],
+            #     a_min=0, a_max=255,
+            #     b_min=0.0, b_max=1.0,
+            #     clip=True
+            # ),
             # ─────────────────────────────────────────────────────────────
             # STAGE 4: DATA AUGMENTATION (TRAINING ONLY)
             # ─────────────────────────────────────────────────────────────
@@ -81,12 +81,12 @@ class Transform:
             #     nonzero=True,
             #     channel_wise=False
             # ),
-            ScaleIntensityRanged(
-                keys=['Mask'],
-                a_min=0, a_max=255,
-                b_min=0.0, b_max=1.0,
-                clip=True
-            ),
+            # ScaleIntensityRanged(
+            #     keys=['Mask'],
+            #     a_min=0, a_max=255,
+            #     b_min=0.0, b_max=1.0,
+            #     clip=True
+            # ),
         ])
 
         return test_transformations
