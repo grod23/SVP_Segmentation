@@ -1,5 +1,6 @@
 from src.config import IMAGE_SIZE, IMAGE_KEY, MASK_KEY
 import torch
+import numpy as np
 from monai.transforms import (
     Compose, LoadImaged, EnsureTyped, NormalizeIntensityd, Resized, ToTensord,
     DeleteItemsd, RandRotate90d,  RandFlipd, ScaleIntensityRanged, RandShiftIntensityd, RandGaussianNoised,
@@ -19,6 +20,7 @@ class Transform:
             LoadImaged(
                 keys=[IMAGE_KEY, MASK_KEY],
                 dtype=torch.float32,
+                # dtype=np.uint8,
                 reader='PILReader',
                 image_only=True,  # Image_only provides metadata
                 ensure_channel_first=True  # Ensures correct channel format (Channels, Height, Width)
@@ -32,21 +34,7 @@ class Transform:
                 mode=['bilinear', 'nearest']
             ),
             # ─────────────────────────────────────────────────────────────
-            # STAGE 3: INTENSITY PREPROCESSING
-            # ─────────────────────────────────────────────────────────────
-            # NormalizeIntensityd(  # Z-Score Normalization (data - mean) / std_dev
-            #     keys=['Image'],
-            #     nonzero=True,
-            #     channel_wise=False
-            # ),
-            # ScaleIntensityRanged(
-            #     keys=[IMAGE_KEY, MASK_KEY],
-            #     a_min=0, a_max=255,
-            #     b_min=0.0, b_max=1.0,
-            #     clip=True
-            # ),
-            # ─────────────────────────────────────────────────────────────
-            # STAGE 4: DATA AUGMENTATION (TRAINING ONLY)
+            # STAGE 3: DATA AUGMENTATION (TRAINING ONLY)
             # ─────────────────────────────────────────────────────────────
         ])
 
@@ -73,20 +61,6 @@ class Transform:
                 spatial_size=IMAGE_SIZE,
                 mode=['bilinear', 'nearest']
             ),
-            # ─────────────────────────────────────────────────────────────
-            # STAGE 3: INTENSITY PREPROCESSING
-            # ─────────────────────────────────────────────────────────────
-            # NormalizeIntensityd(  # Z-Score Normalization (data - mean) / std_dev
-            #     keys=['Image'],
-            #     nonzero=True,
-            #     channel_wise=False
-            # ),
-            # ScaleIntensityRanged(
-            #     keys=['Mask'],
-            #     a_min=0, a_max=255,
-            #     b_min=0.0, b_max=1.0,
-            #     clip=True
-            # ),
         ])
 
         return test_transformations

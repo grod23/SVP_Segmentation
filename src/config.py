@@ -28,6 +28,12 @@ WEIGHT_DECAY = 0.01
 IMAGE_SIZE = (512, 512)
 
 # ========================
+# Preprocessing Hyperparameters
+# ========================
+CLIP_LIMIT = 2.0
+TILE_GRID_SIZE = (8, 8)
+
+# ========================
 # Model Parameters
 # ========================
 IN_CHANNELS = 3

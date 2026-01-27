@@ -1,3 +1,4 @@
+from src.config import IMAGE_KEY, MASK_KEY, CLIP_LIMIT, TILE_GRID_SIZE
 from torch.utils.data import Dataset
 import torch
 import cv2
@@ -18,8 +19,8 @@ class FundusDataset(Dataset):
         batch = self.data[index]
         if self.transform:
             batch = self.transform(batch)
-        image = batch['Image']
-        mask = batch['Mask']
+        image = batch[IMAGE_KEY]
+        mask = batch[MASK_KEY]
         print(f'Image Shape: {image.shape}')
         print(f'Image Type: {image.dtype}')
         print("Image min/max:", image.min(), image.max())
@@ -28,16 +29,17 @@ class FundusDataset(Dataset):
         print("Mask min/max:", mask.min(), mask.max())
         print('\n')
 
-        plt.figure(figsize=(10, 10))
-        plt.subplot(1, 2, 1)
-        plt.title('Image Before Preprocessing')
-        plt.axis('off')
-        plt.imshow(image.permute(1, 2, 0).detach().cpu().numpy() / 255.0)
-        plt.subplot(1, 2, 2)
-        plt.title('Mask Before Preprocessing')
-        plt.axis('off')
-        plt.imshow(mask.permute(1, 2, 0).detach().cpu().numpy() / 255.0)
-        plt.show()
+        # Image Preprocessing
+        # plt.figure(figsize=(10, 10))
+        # plt.subplot(1, 2, 1)
+        # plt.title('Image Before Preprocessing')
+        # plt.axis('off')
+        # plt.imshow(image.permute(1, 2, 0).detach().cpu().numpy() / 255.0)
+        # plt.subplot(1, 2, 2)
+        # plt.title('Mask Before Preprocessing')
+        # plt.axis('off')
+        # plt.imshow(mask.permute(1, 2, 0).detach().cpu().numpy() / 255.0)
+        # plt.show()
 
         # Extract green plane from image
         green_plane = image[1, :, :]
@@ -45,37 +47,64 @@ class FundusDataset(Dataset):
         print("Green min/max:", green_plane.min(), green_plane.max())
         print(f'Green Type: {type(green_plane)}')
 
-        plt.figure(figsize=(10, 10))
-        plt.title('Green Plane')
-        plt.axis('off')
-        plt.imshow(green_plane.detach().cpu().numpy())
-        plt.show()
+        # plt.figure(figsize=(10, 10))
+        # plt.title('Green Plane')
+        # plt.axis('off')
+        # plt.imshow(green_plane.detach().cpu().numpy())
+        # plt.show()
 
-        # CLAHE
+        # CLAHE (Contrast Limited Adaptive Histogram Equalization)
         clahe = cv2.createCLAHE(
-            clipLimit=2.0,
-            tileGridSize=(8, 8)
+            clipLimit=CLIP_LIMIT,
+            tileGridSize=TILE_GRID_SIZE
         )
+        # Ensure image is rounded np.uint8 on CPU
         green_np = green_plane.cpu().numpy().round().astype('uint8')
         enhanced_image = clahe.apply(green_np)
-        print(f'Enhanced Shape: {enhanced_image.shape}')
-        print('Enhanced min/max:', enhanced_image.min(), enhanced_image.max())
-        print(f'Enhanced Type: {type(enhanced_image)}')
+
+        # plt.figure(figsize=(10, 10))
+        # plt.title('CLAHE Image')
+        # plt.axis('off')
+        # plt.imshow(enhanced_image)
+        # plt.show()
+
+        # Mask Preprocessing:
+        # Convert to single channel
+        mask = mask.mean(dim=0)
+        # Binarize to [0, 1]
+        # Per-mask normalization (handles min > 0 safely)
+        min_val = mask.min()
+        max_val = mask.max()
+
+        if max_val > min_val:
+            mask = (mask - min_val) / (max_val - min_val)
+            mask = mask > 0.5
+        else:
+            mask = torch.zeros_like(mask, dtype=torch.bool)
 
         plt.figure(figsize=(10, 10))
-        plt.title('CLAHE Image')
+        plt.subplot(1, 2, 1)
+        plt.title('Image After Preprocessing')
         plt.axis('off')
         plt.imshow(enhanced_image)
+        plt.subplot(1, 2, 2)
+        plt.title('Mask After Preprocessing')
+        plt.axis('off')
+        plt.imshow(mask.detach().cpu().numpy() * 255)
         plt.show()
 
-        sys.exit()
+        # Normalize to [0, 1]
+        enhanced_image = enhanced_image / 255.0
+        # Convert to tensor
+        enhanced_image = torch.tensor(enhanced_image, dtype=torch.float32)
 
+        print(f'Enhanced After Shape: {enhanced_image.shape}')
+        print('Enhanced After min/max:', enhanced_image.min(), enhanced_image.max())
+        print(f'Enhanced After Type: {type(enhanced_image)}')
+        print(f'Mask After Shape: {mask.shape}')
+        print(f'Mask After Type: {mask.dtype}')
+        print("Mask After min/max:", mask.min(), mask.max())
+        print('\n')
         return image, mask
 
         # https://www.frontiersin.org/journals/medicine/articles/10.3389/fmed.2024.1470941/full
-
-        # PREPROCESSING:
-        # 1.) High Pass Filtering - Given RGB fundus image, separate binary image by the green plane (green plane shows vessels
-        # strongest).
-        # 2.) CLAHE
-        # 3.) Min max normalization or STD Standardization
