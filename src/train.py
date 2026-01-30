@@ -21,48 +21,70 @@ class Train:
             self.validation_loader,
             self.testing_loader,
         ) = self.datautils.create_dataloaders()
-        self.logger = Logger()
+        self.logger = Logger(len(self.training_loader), len(self.validation_loader))
         self.model = Segmentation_Model(backbone_name='unet').to(DEVICE)
         self.optimizer = torch.optim.AdamW(
             params=self.model.parameters(),
             lr=LEARNING_RATE,
             weight_decay=WEIGHT_DECAY
         )
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer,
+                                                                    mode='min',
+                                                                    factor=0.5,
+                                                                    patience=3)
         self.loss_fn = DiceCELoss(
-            include_background=False,
+            # include_background=False,
             to_onehot_y=False,
             sigmoid=True,
             softmax=False
                                   )
 
     def visualize_sample(self, batches=5):
+        loader_iter = iter(self.training_loader)
         for _ in range(batches):
-            batch = next(iter(self.training_loader))
+            batch = next(loader_iter)
             self.logger.visualize_batch(batch)
             # self.logger.clear_tensorboard()
 
 
     def run_epoch(self):
         self.model.train()
-        for batch in self.training_loader:
+        for train_batch in self.training_loader:
             self.optimizer.zero_grad()
-            X_image_batch = batch[IMAGE_KEY]
-            y_mask_batch = batch[MASK_KEY]
-            y_mask_batch = y_mask_batch[:, 0:1, :, :]  # take one channel
-            print(f'X Shape: {X_image_batch.shape}')
-            print(f'Y Shape: {y_mask_batch.shape}')
-            # Conver to GPU
-            X_image_batch = X_image_batch.to(DEVICE)
-            y_mask_batch = y_mask_batch.to(DEVICE)
+            X_image, y_mask = train_batch
+            # Convert to GPU
+            X_image = X_image.to(DEVICE, non_blocking=torch.cuda.is_available())
+            y_mask = y_mask.to(DEVICE, non_blocking=torch.cuda.is_available())
+            # print(f'X Shape: {X_image.shape}')
+            # print(f'Y Shape: {y_mask.shape}')
             # Get predicted mask
-            y_predicted = self.model(X_image_batch)
-            print(f'Y Pred Shape: {y_predicted.shape}')
-            loss = self.loss_fn(y_predicted, y_mask_batch)
+            y_predicted = self.model(X_image)
+            # print(f'Y Pred Shape: {y_predicted.shape}')
+            loss = self.loss_fn(y_predicted, y_mask)
             loss.backward()
             self.optimizer.step()
+            self.logger.log_epoch_loss(loss, train=True)
 
-            print(f'Loss: {loss.item()}')
-            self.logger.plot_sample(y_predicted[0])
+        # Validation
+        self.model.eval()
+        with torch.no_grad():
+            for val_batch in self.validation_loader:
+                X_image, y_mask = val_batch
+                X_image = X_image.to(DEVICE, non_blocking=torch.cuda.is_available())
+                y_mask = y_mask.to(DEVICE, non_blocking=torch.cuda.is_available())
+                y_predicted = self.model(X_image)
+                loss = self.loss_fn(y_predicted, y_mask)
+                self.logger.log_epoch_loss(loss, train=False)
+
+        avg_train_loss, avg_val_loss = self.logger.get_average_loss()
+        print(f'Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}')
+        # Update the scheduler
+        # self.scheduler.step(avg_val_loss)
+
+
+    def train(self):
+        for epoch in range(EPOCHS):
+            self.run_epoch()
 
 
 

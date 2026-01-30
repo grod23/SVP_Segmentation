@@ -4,14 +4,9 @@ import sys
 
 def main():
     train = Train()
-    for batch in train.training_loader:
-        print(f'Batch: {batch}')
-        print(f'Batch Type: {type(batch)}')
-        print(f'Batch Shape: {batch.shape}')
-        sys.exit()
-
     # train.visualize_sample()
-    # train.run_epoch()
+    train.train()
+    train.logger.display_loss()
     # train.datautils.clear_cache()
 
 
