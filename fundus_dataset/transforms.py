@@ -36,6 +36,10 @@ class Transform:
             # ─────────────────────────────────────────────────────────────
             # STAGE 3: DATA AUGMENTATION (TRAINING ONLY)
             # ─────────────────────────────────────────────────────────────
+            # RandRotate90d(
+            #     keys=[IMAGE_KEY, MASK_KEY],
+            #     prob=0.5
+            # )
         ])
 
         return train_transformations

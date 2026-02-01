@@ -36,7 +36,7 @@ TILE_GRID_SIZE = (8, 8)
 # ========================
 # Model Parameters
 # ========================
-IN_CHANNELS = 3
+IN_CHANNELS = 1
 OUT_CHANNELS = 1
 SPATIAL_DIMS = 2
 

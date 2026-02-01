@@ -78,9 +78,9 @@ class FundusDataset(Dataset):
 
         if max_val > min_val:
             mask = (mask - min_val) / (max_val - min_val)
-            mask = mask > 0.5
+            mask = (mask > 0.5).float()
         else:
-            mask = torch.zeros_like(mask, dtype=torch.bool)
+            mask = torch.zeros_like(mask, dtype=torch.float32)
 
         # Add channel dimension
         mask = mask.unsqueeze(0) # [Batch, Channel, Height, Width]
@@ -99,7 +99,7 @@ class FundusDataset(Dataset):
         # Normalize to [0, 1]
         enhanced_image = enhanced_image / 255.0
         # Convert to tensor
-        enhanced_image = torch.tensor(enhanced_image, dtype=torch.float32)
+        enhanced_image = torch.tensor(enhanced_image, dtype=torch.float32).unsqueeze(0)
 
         # print(f'Enhanced After Shape: {enhanced_image.shape}')
         # print('Enhanced After min/max:', enhanced_image.min(), enhanced_image.max())
@@ -108,6 +108,6 @@ class FundusDataset(Dataset):
         # print(f'Mask After Type: {mask.dtype}')
         # print("Mask After min/max:", mask.min(), mask.max())
         # print('\n')
-        return image, mask
+        return enhanced_image, mask
 
         # https://www.frontiersin.org/journals/medicine/articles/10.3389/fmed.2024.1470941/full

@@ -6,7 +6,8 @@ def main():
     train = Train()
     # train.visualize_sample()
     train.train()
-    train.logger.display_loss()
+    # train.logger.display_loss()
+    train.test()
     # train.datautils.clear_cache()
 
 

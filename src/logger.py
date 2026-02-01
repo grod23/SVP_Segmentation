@@ -72,13 +72,38 @@ class Logger:
         sample = sample.detach().cpu().numpy()
         return sample
 
-    def plot_sample(self, sample):
+    def plot_single_sample(self, sample):
+        # print(f'Sample Shape: {sample.shape}')
         sample_prepped = self.prep_sample(sample)
         plt.figure(figsize=(10, 10))
         plt.title("Image")
         plt.imshow(sample_prepped)
         plt.axis("off")
         plt.show()
+
+    def plot_sample_results(self, original_image, mask, predicted_mask):
+        # Prep each image
+        original_image = self.prep_sample(original_image)
+        mask = self.prep_sample(mask)
+        predicted_mask = self.prep_sample(predicted_mask
+                                          )
+        plt.figure(figsize=(10, 10))
+        plt.subplot(1, 3, 1)
+        plt.imshow(original_image)
+        plt.title('Original Image')
+        plt.axis("off")
+
+        plt.subplot(1, 3, 2)
+        plt.imshow(mask)
+        plt.title('Ground Truth')
+        plt.axis("off")
+
+        plt.subplot(1, 3, 3)
+        plt.imshow(predicted_mask)
+        plt.title('Predicted Mask')
+        plt.axis("off")
+        plt.show()
+
 
     def visualize_batch(self, batch):
         image_batch = batch[IMAGE_KEY]
