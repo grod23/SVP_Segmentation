@@ -1,3 +1,14 @@
 ### Spontaneous Retinal Venous Pulsation Segmentation
 
 Spontaneous Retinal Venous Pulsation (SVP) refers to the widening and narrowing of retinal veins at the optic disc. These rythmic pulsations are linked to the heartbeat and influenced by pressure changes between the eye and the brain. The absence of SVP is significant as it is related to an increased intracranial pressure (ICP) or glaucoma. This work focuses on the segmentation of the retinal vessels most indicative of a presence or absence of SVP. 
+
+### Retinal Image Preprocessing
+
+<table>
+  <tr>
+    <td><img src="README_Images/Original Image.png" alt="Original Image" width="300"></td>
+    <td><img src="README_Images/Image Green Plane.png" alt="Image Green Plane" width="300"></td>
+    <td><img src="README_Images/Image CLAHE.png" alt="Image After CLAHE" width="300"></td>
+
+  </tr>
+</table>
