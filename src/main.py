@@ -1,5 +1,4 @@
 from src.train import Train
-from fundus_dataset.dataset import FundusDataset
 import sys
 
 def main():
@@ -7,7 +6,9 @@ def main():
     # train.visualize_sample()
     train.train()
     # train.logger.display_loss()
-    train.test()
+    train.tester.test_model()
+    train.tester.display_training_loss()
+
     # train.datautils.clear_cache()
 
 

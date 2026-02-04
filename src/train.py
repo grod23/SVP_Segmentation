@@ -1,12 +1,9 @@
-from src.config import DEVICE, EPOCHS, LEARNING_RATE, BATCH_SIZE, WEIGHT_DECAY, IMAGE_KEY, MASK_KEY
+from src.config import DEVICE, EPOCHS, LEARNING_RATE, WEIGHT_DECAY
 from src.logger import Logger
 from src.model import Segmentation_Model
-from src import DataUtils
+from src import DataUtils, Test, Visualizer
 import torch
-import cv2
 from monai.losses import DiceLoss, DiceCELoss, DiceFocalLoss, TverskyLoss
-from monai.metrics import DiceMetric, MeanIoU, ConfusionMatrixMetric, ROCAUCMetric
-from monai.transforms import Activations, AsDiscrete
 from monai.engines import SupervisedTrainer, SupervisedEvaluator
 
 
@@ -24,6 +21,8 @@ class Train:
         ) = self.datautils.create_dataloaders()
         self.logger = Logger(len(self.training_loader), len(self.validation_loader))
         self.model = Segmentation_Model(backbone_name='unet').to(DEVICE)
+        self.visuals = Visualizer(self.logger)
+        self.tester = Test(self.model, self.testing_loader, self.logger, self.visuals)
         self.optimizer = torch.optim.AdamW(
             params=self.model.parameters(),
             lr=LEARNING_RATE,
@@ -60,31 +59,12 @@ class Train:
         #     alpha=0.5,
         #     gamma=2.0
         # )
-        # Metrics
-        self.dice_metric = DiceMetric(
-            include_background=True,
-            reduction="mean"
-        )
-
-        self.iou_metric = MeanIoU(
-            include_background=True
-        )
-
-        self.confusion_metric = ConfusionMatrixMetric(
-            metric_name=["sensitivity", "specificity", "precision"],
-            include_background=True
-        )
-
-        self.roc_auc_metric = ROCAUCMetric()
-        # Post-processing
-        self.sigmoid = Activations(sigmoid=True)
-        self.threshold = AsDiscrete(threshold=0.7)
 
     def visualize_sample(self, batches=5):
         loader_iter = iter(self.training_loader)
         for _ in range(batches):
             batch = next(loader_iter)
-            self.logger.visualize_batch(batch)
+            self.visuals.visualize_batch(batch)
             # self.logger.clear_tensorboard()
 
 
@@ -127,53 +107,3 @@ class Train:
         for epoch in range(EPOCHS):
             self.run_epoch()
 
-    def test(self):
-        # Reset metrics at start of validation
-        self.dice_metric.reset()
-        self.iou_metric.reset()
-        self.confusion_metric.reset()
-        self.roc_auc_metric.reset()
-        self.model.eval()
-        with torch.no_grad():
-            for batch in self.testing_loader:
-                X_image, y_mask = batch
-                X_image = X_image.to(DEVICE, non_blocking=torch.cuda.is_available())
-                y_mask = y_mask.to(DEVICE, non_blocking=torch.cuda.is_available())
-                y_predicted = self.model(X_image)
-                self.logger.plot_sample_results(X_image[0], y_mask[0], y_predicted[0])
-                # ---- Post-processing ----
-                probs = self.sigmoid(y_predicted)
-                preds = self.threshold(probs)
-
-                # ---- Metrics ----
-                self.dice_metric(preds, y_mask)
-                self.iou_metric(preds, y_mask)
-                self.confusion_metric(preds, y_mask)
-
-                # ROC-AUC uses probabilities (no threshold)
-                # self.roc_auc_metric(probs, y_mask)
-
-        dice = self.dice_metric.aggregate().item()
-        iou = self.iou_metric.aggregate().item()
-
-        sensitivity, specificity, precision = self.confusion_metric.aggregate()
-        sensitivity = sensitivity.item()
-        specificity = specificity.item()
-        precision = precision.item()
-
-        # roc_auc = self.roc_auc_metric.aggregate().item()
-
-        self.dice_metric.reset()
-        self.iou_metric.reset()
-        self.confusion_metric.reset()
-        # self.roc_auc_metric.reset()
-
-        print(
-            f"Epoch {self.logger.current_epoch} | "
-            f"Dice: {dice:.4f} | "
-            f"IoU: {iou:.4f} | "
-            f"Sensitivity: {sensitivity:.4f} | "
-            f"Specificity: {specificity:.4f} | "
-            f"Precision: {precision:.4f} | "
-            # f"AUC: {roc_auc:.4f}"
-        )
