@@ -90,13 +90,12 @@ class Visualizer:
 
     def plot_image_results(self, original_image, mask, predicted_mask):
         # Prep each image
-        original_image = self.prep_sample(original_image)
         mask = self.prep_sample(mask)
         predicted_mask = self.prep_sample(predicted_mask
                                           )
         plt.figure(figsize=(10, 10))
         plt.subplot(1, 3, 1)
-        plt.imshow(original_image)
+        plt.imshow(original_image.permute(1, 2, 0).detach().cpu().numpy() / 255)
         plt.title('Original Image')
         plt.axis("off")
 

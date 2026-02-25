@@ -1,6 +1,12 @@
 from pathlib import Path
 import torch
 
+
+# ========================
+# SEEDING FOR REPRODUCIBILITY
+# ========================
+SEED = 67
+
 # ========================
 # PROJECT PATHS
 # ========================
@@ -15,13 +21,18 @@ TENSORBOARD_DIR = './runs'
 # ========================
 IMAGE_KEY = 'Image'
 MASK_KEY = 'Mask'
+METADATA_KEY = 'Metadata'
+# ========================
+# Metadata Dictionary Keys
+# ========================
+
 
 # ========================
 # Hyperparameters
 # ========================
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 NUM_WORKERS = 0
-EPOCHS = 10
+EPOCHS = 15
 LEARNING_RATE = 0.001
 BATCH_SIZE = 12
 WEIGHT_DECAY = 0.01

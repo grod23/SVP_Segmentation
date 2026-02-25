@@ -1,5 +1,6 @@
 from src.config import DEVICE
 from monai.metrics import DiceMetric, MeanIoU, ConfusionMatrixMetric, ROCAUCMetric
+from sklearn.metrics import accuracy_score, f1_score, jaccard_score, precision_score, recall_score
 from monai.transforms import Activations, AsDiscrete
 import torch
 
@@ -37,19 +38,46 @@ class Test:
         self.model.eval()
         with torch.no_grad():
             for batch in self.testing_loader:
-                X_image, y_mask = batch
+                X_image, y_mask, original_image, metadata = batch
                 X_image = X_image.to(DEVICE, non_blocking=torch.cuda.is_available())
                 y_mask = y_mask.to(DEVICE, non_blocking=torch.cuda.is_available())
                 y_predicted = self.model(X_image)
-                self.visuals.plot_image_results(X_image[0], y_mask[0], y_predicted[0])
+                ##########Converting predicted mask to binary##########
+                min_val = y_predicted.min()
+                max_val = y_predicted.max()
+                if max_val > min_val:
+                    y_predicted = (y_predicted - min_val) / (max_val - min_val)
+                    y_predicted = (y_predicted > 0.5).float()
+                else:
+                    y_predicted = torch.zeros_like(y_predicted, dtype=torch.float32)
+                self.visuals.plot_image_results(original_image[0], y_mask[0], y_predicted[0])
+                ##########################################################
                 # ---- Post-processing ----
                 probs = self.sigmoid(y_predicted)
                 preds = self.threshold(probs)
-
                 # ---- Metrics ----
                 self.dice_metric(preds, y_mask)
                 self.iou_metric(preds, y_mask)
                 self.confusion_metric(preds, y_mask)
+
+                # Move tensors to CPU and convert to NumPy
+                y_mask_np = y_mask.detach().cpu().numpy().flatten()
+                y_predicted_np = preds.detach().cpu().numpy().flatten()
+                # SKLearn Metrics
+                score_jaccard = jaccard_score(y_mask_np, y_predicted_np, average='binary')
+                score_f1 = f1_score(y_mask_np, y_predicted_np, average='binary')
+                score_recall = recall_score(y_mask_np, y_predicted_np, average='binary')
+                score_precision = precision_score(y_mask_np, y_predicted_np, average='binary')
+                score_accuracy = accuracy_score(y_mask_np, y_predicted_np)
+                print(
+                    f"Epoch {self.logger.current_epoch} | "
+                    f"Jaccard: {score_jaccard:.4f} | "
+                    f"F1 Score: {score_f1:.4f} | "
+                    f"Recall: {score_recall:.4f} | "
+                    f"Precision: {score_precision:.4f} | "
+                    f"Accuracy: {score_accuracy:.4f} | "
+                )
+
 
                 # ROC-AUC uses probabilities (no threshold)
                 # self.roc_auc_metric(probs, y_mask)
@@ -78,3 +106,12 @@ class Test:
             f"Precision: {precision:.4f} | "
             # f"AUC: {roc_auc:.4f}"
         )
+
+
+    def test_pulsation_mask(self):
+        with torch.no_grad():
+            for batch in self.testing_loader:
+                X_image, y_mask, original_image, metadata = batch
+                video_title = metadata[]
+                X_image = X_image.to(DEVICE, non_blocking=torch.cuda.is_available())
+                y_mask = y_mask.to(DEVICE, non_blocking=torch.cuda.is_available())

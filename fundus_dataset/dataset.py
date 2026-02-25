@@ -1,4 +1,4 @@
-from src.config import IMAGE_KEY, MASK_KEY, CLIP_LIMIT, TILE_GRID_SIZE
+from src.config import IMAGE_KEY, MASK_KEY, METADATA_KEY, CLIP_LIMIT, TILE_GRID_SIZE
 from torch.utils.data import Dataset
 import torch
 import cv2
@@ -21,12 +21,13 @@ class FundusDataset(Dataset):
             batch = self.transform(batch)
         image = batch[IMAGE_KEY]
         mask = batch[MASK_KEY]
+        metadata = batch[METADATA_KEY]
 
-        plt.figure(figsize=(10, 10))
-        plt.title('Original Image')
-        plt.axis('off')
-        plt.imshow(image.permute(1, 2, 0).detach().cpu().numpy() / 255)
-        plt.show()
+        # plt.figure(figsize=(10, 10))
+        # plt.title('Original Image')
+        # plt.axis('off')
+        # plt.imshow(image.permute(1, 2, 0).detach().cpu().numpy() / 255)
+        # plt.show()
         # print(f'Image Shape: {image.shape}')
         # print(f'Image Type: {image.dtype}')
         # print("Image min/max:", image.min(), image.max())
@@ -41,11 +42,11 @@ class FundusDataset(Dataset):
         # print("Green min/max:", green_plane.min(), green_plane.max())
         # print(f'Green Type: {type(green_plane)}')
 
-        plt.figure(figsize=(10, 10))
-        plt.title('Image Green Plane Only')
-        plt.axis('off')
-        plt.imshow(green_plane.detach().cpu().numpy())
-        plt.show()
+        # plt.figure(figsize=(10, 10))
+        # plt.title('Image Green Plane Only')
+        # plt.axis('off')
+        # plt.imshow(green_plane.detach().cpu().numpy())
+        # plt.show()
 
         # CLAHE (Contrast Limited Adaptive Histogram Equalization)
         clahe = cv2.createCLAHE(
@@ -56,11 +57,11 @@ class FundusDataset(Dataset):
         green_np = green_plane.cpu().numpy().round().astype('uint8')
         enhanced_image = clahe.apply(green_np)
 
-        plt.figure(figsize=(10, 10))
-        plt.title('Image After CLAHE')
-        plt.axis('off')
-        plt.imshow(enhanced_image)
-        plt.show()
+        # plt.figure(figsize=(10, 10))
+        # plt.title('Image After CLAHE')
+        # plt.axis('off')
+        # plt.imshow(enhanced_image)
+        # plt.show()
 
         # Mask Preprocessing:
         # Convert to single channel
@@ -79,16 +80,16 @@ class FundusDataset(Dataset):
         # Add channel dimension
         mask = mask.unsqueeze(0) # [Batch, Channel, Height, Width]
 
-        plt.figure(figsize=(10, 10))
-        plt.subplot(1, 2, 1)
-        plt.title('Image After Preprocessing')
-        plt.axis('off')
-        plt.imshow(enhanced_image)
-        plt.subplot(1, 2, 2)
-        plt.title('Mask After Preprocessing')
-        plt.axis('off')
-        plt.imshow(mask.detach().cpu().numpy().squeeze(0) * 255)
-        plt.show()
+        # plt.figure(figsize=(10, 10))
+        # plt.subplot(1, 2, 1)
+        # plt.title('Image After Preprocessing')
+        # plt.axis('off')
+        # plt.imshow(enhanced_image)
+        # plt.subplot(1, 2, 2)
+        # plt.title('Mask After Preprocessing')
+        # plt.axis('off')
+        # plt.imshow(mask.detach().cpu().numpy().squeeze(0) * 255)
+        # plt.show()
 
         # Normalize to [0, 1]
         enhanced_image = enhanced_image / 255.0
@@ -102,6 +103,6 @@ class FundusDataset(Dataset):
         # print(f'Mask After Type: {mask.dtype}')
         # print("Mask After min/max:", mask.min(), mask.max())
         # print('\n')
-        return enhanced_image, mask
+        return enhanced_image, mask, image, metadata
 
         # https://www.frontiersin.org/journals/medicine/articles/10.3389/fmed.2024.1470941/full

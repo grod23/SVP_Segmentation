@@ -40,7 +40,8 @@ class Backbone(nn.Module):
                 out_channels=OUT_CHANNELS,
                 kernel_size=[[3,3]]*4,
                 strides=[[2,2]]*4,
-                filters=[16, 32, 64, 128, 256]
+                filters=[16, 32, 64, 128, 256],
+                # upsample_kernel_size=
             )
         elif self.backbone_name == 'basicunetplusplus':
             self.backbone = BasicUNetPlusPlus(
@@ -53,7 +54,8 @@ class Backbone(nn.Module):
             self.backbone = FlexibleUNet(
                 spatial_dims=2,
                 in_channels=IN_CHANNELS,
-                out_channels=OUT_CHANNELS
+                out_channels=OUT_CHANNELS,
+                backbone='resnet101'
             )
 
     def forward(self, X_image):

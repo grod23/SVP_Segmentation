@@ -10,7 +10,7 @@ class Logger:
     def __init__(self, training_loader_length, validation_loader_length):
         self.train_length = training_loader_length
         self.validation_length = validation_loader_length
-        self.writer = SummaryWriter(TENSORBOARD_DIR)
+        # self.writer = SummaryWriter(TENSORBOARD_DIR)
         # Total Loss logs
         self.training_loss_logs = []
         self.validation_loss_logs = []

@@ -3,7 +3,8 @@ from src.logger import Logger
 from src.model import Segmentation_Model
 from src import DataUtils, Test, Visualizer
 import torch
-from monai.losses import DiceLoss, DiceCELoss, DiceFocalLoss, TverskyLoss
+from torch.nn import BCELoss, BCEWithLogitsLoss
+from monai.losses import DiceLoss, DiceCELoss, DiceFocalLoss, TverskyLoss, MaskedDiceLoss, GeneralizedDiceLoss
 from monai.engines import SupervisedTrainer, SupervisedEvaluator
 
 
@@ -32,20 +33,40 @@ class Train:
                                                                     mode='min',
                                                                     factor=0.5,
                                                                     patience=3)
+        # self.loss_fn = TverskyLoss(
+        #     sigmoid=True,
+        #     alpha=0.8,  # penalize FP
+        #     beta=0.2,  # allow small FN
+        #     smooth_nr=1e-5,
+        #     smooth_dr=1e-5,
+        #     batch=True
+        # )
+        # weight for positive class (foreground)
+        pos_weight = torch.tensor([2.0]).to(DEVICE)  # increase to penalize oversegmentation
+        self.loss_fn = BCEWithLogitsLoss(pos_weight=pos_weight)
+
+
         # self.loss_fn = DiceCELoss(
         #     include_background=True,
         #     to_onehot_y=False,
         #     sigmoid=True,
         #     softmax=False
-        #                          )
-        self.loss_fn = TverskyLoss(
-            sigmoid=True,
-            alpha=0.8,  # penalize FP
-            beta=0.2,  # allow small FN
-            smooth_nr=1e-5,
-            smooth_dr=1e-5,
-            batch=True
-        )
+        #                         )
+        # self.loss_fn = DiceFocalLoss(
+        #     sigmoid=True,
+        #     alpha=0.8,  # penalize FP
+        #     smooth_nr=1e-5,
+        #     smooth_dr=1e-5,
+        #     batch=True
+        # )
+        # self.loss_fn = MaskedDiceLoss()
+        # self.loss_fn = GeneralizedDiceLoss(
+        #     sigmoid=True,
+        #     batch=False
+        # )
+        # self.loss_fn = BCEWithLogitsLoss()
+        # self.loss_fn = BCELoss()
+
         # bce = torch.nn.BCEWithLogitsLoss(pos_weight=torch.tensor([0.3]).to(DEVICE))
         # dice = DiceLoss(sigmoid=True)
         # loss = dice(y_predicted, y_mask) + 0.7 * bce(y_predicted, y_mask)
@@ -72,7 +93,7 @@ class Train:
         self.model.train()
         for train_batch in self.training_loader:
             self.optimizer.zero_grad()
-            X_image, y_mask = train_batch
+            X_image, y_mask, _, _ = train_batch
             # Convert to GPU
             X_image = X_image.to(DEVICE, non_blocking=torch.cuda.is_available())
             y_mask = y_mask.to(DEVICE, non_blocking=torch.cuda.is_available())
@@ -90,7 +111,7 @@ class Train:
         self.model.eval()
         with torch.no_grad():
             for val_batch in self.validation_loader:
-                X_image, y_mask = val_batch
+                X_image, y_mask, _, _ = val_batch
                 X_image = X_image.to(DEVICE, non_blocking=torch.cuda.is_available())
                 y_mask = y_mask.to(DEVICE, non_blocking=torch.cuda.is_available())
                 y_predicted = self.model(X_image)
