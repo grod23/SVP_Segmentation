@@ -25,7 +25,11 @@ METADATA_KEY = 'Metadata'
 # ========================
 # Metadata Dictionary Keys
 # ========================
-
+ViDEO_TITLE_KEY = 'Video Title'
+FRAME_KEY = 'Frame'
+MIN_MAX_KEY = 'Min/Max'
+DISEASE_KEY = 'Disease'
+SVP_CLASS_KEY = 'SVP'
 
 # ========================
 # Hyperparameters
