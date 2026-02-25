@@ -1,7 +1,8 @@
 import torch
 from src.config import METADATA, TRAIN_SPLIT, BATCH_SIZE, NUM_WORKERS, CACHE_DIR
 from fundus_dataset import Transform, FundusDataset
-from monai.data import DataLoader, PersistentDataset, Dataset
+# from monai.data import DataLoader
+from torch.utils.data import DataLoader
 import json
 import joblib
 import shutil
@@ -34,9 +35,9 @@ class DataUtils:
     def create_datasets(self):
         train, validation, test = self.load_split()
         # Load Datasets
-        train_dataset = FundusDataset(train, transform=self.transform.train_transform)
-        validation_dataset = FundusDataset(validation, transform=self.transform.test_transform)
-        test_dataset = FundusDataset(test, transform=self.transform.test_transform)
+        train_dataset = FundusDataset(train, transform=self.transform.train_transform, testing=False)
+        validation_dataset = FundusDataset(validation, transform=self.transform.test_transform, testing=False)
+        test_dataset = FundusDataset(test, transform=self.transform.test_transform, testing=True)
         return train_dataset, validation_dataset, test_dataset
 
     def create_dataloaders(self):
@@ -61,7 +62,7 @@ class DataUtils:
         )
         test_loader = DataLoader(
             dataset=test_dataset,
-            batch_size=BATCH_SIZE,
+            batch_size=1,
             shuffle=False,
             num_workers=NUM_WORKERS,
             pin_memory=torch.cuda.is_available(),

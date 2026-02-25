@@ -6,8 +6,8 @@ def main():
     # train.visualize_sample()
     train.train()
     # train.logger.display_loss()
-    train.tester.test_pulsation_mask()
-    train.tester.visuals.display_training_loss()
+    # train.save_model()
+    train.test_model()
 
     # train.datautils.clear_cache()
 

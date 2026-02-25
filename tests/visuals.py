@@ -91,8 +91,7 @@ class Visualizer:
     def plot_image_results(self, original_image, mask, predicted_mask):
         # Prep each image
         mask = self.prep_sample(mask)
-        predicted_mask = self.prep_sample(predicted_mask
-                                          )
+        predicted_mask = self.prep_sample(predicted_mask)
         plt.figure(figsize=(10, 10))
         plt.subplot(1, 3, 1)
         plt.imshow(original_image.permute(1, 2, 0).detach().cpu().numpy() / 255)
@@ -109,5 +108,50 @@ class Visualizer:
         plt.title('Predicted Mask')
         plt.axis("off")
         plt.show()
+
+
+    def plot_pulsation_masks(self, mask_max, mask_min, predicted_max, predicted_min):
+        """
+            Plots the original image along with ground truth and predicted masks (min and max),
+            without creating pulsation masks yet.
+        """
+        # Prepare each image/mask
+        mask_max = self.prep_sample(mask_max)
+        mask_min = self.prep_sample(mask_min)
+        predicted_max = self.prep_sample(predicted_max)
+        predicted_min = self.prep_sample(predicted_min)
+
+        plt.figure(figsize=(20, 5))  # Wide figure for 5 images side by side
+        # Ground truth min
+        plt.subplot(1, 4, 1)
+        plt.imshow(mask_min, cmap='gray')
+        plt.title('GT Min Mask')
+        plt.axis("off")
+
+        # Ground truth max
+        plt.subplot(1, 4, 2)
+        plt.imshow(mask_max, cmap='gray')
+        plt.title('GT Max Mask')
+        plt.axis("off")
+
+        # Predicted min
+        plt.subplot(1, 4, 3)
+        plt.imshow(predicted_min, cmap='gray')
+        plt.title('Pred Min Mask')
+        plt.axis("off")
+
+        # Predicted max
+        plt.subplot(1, 4, 4)
+        plt.imshow(predicted_max, cmap='gray')
+        plt.title('Pred Max Mask')
+        plt.axis("off")
+
+        plt.tight_layout()
+        plt.show()
+
+
+    def create_pulsation_mask(self, min_image, max_image):
+        pass
+
 
 

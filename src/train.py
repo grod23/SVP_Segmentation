@@ -21,7 +21,7 @@ class Train:
             self.testing_loader,
         ) = self.datautils.create_dataloaders()
         self.logger = Logger(len(self.training_loader), len(self.validation_loader))
-        self.model = Segmentation_Model(backbone_name='unet').to(DEVICE)
+        self.model = Segmentation_Model(backbone_name='attentionunet').to(DEVICE)
         self.visuals = Visualizer(self.logger)
         self.tester = Test(self.model, self.testing_loader, self.logger, self.visuals)
         self.optimizer = torch.optim.AdamW(
@@ -93,7 +93,7 @@ class Train:
         self.model.train()
         for train_batch in self.training_loader:
             self.optimizer.zero_grad()
-            X_image, y_mask, _, _ = train_batch
+            X_image, y_mask, _ = train_batch
             # Convert to GPU
             X_image = X_image.to(DEVICE, non_blocking=torch.cuda.is_available())
             y_mask = y_mask.to(DEVICE, non_blocking=torch.cuda.is_available())
@@ -111,7 +111,7 @@ class Train:
         self.model.eval()
         with torch.no_grad():
             for val_batch in self.validation_loader:
-                X_image, y_mask, _, _ = val_batch
+                X_image, y_mask, _ = val_batch
                 X_image = X_image.to(DEVICE, non_blocking=torch.cuda.is_available())
                 y_mask = y_mask.to(DEVICE, non_blocking=torch.cuda.is_available())
                 y_predicted = self.model(X_image)
@@ -127,4 +127,10 @@ class Train:
     def train(self):
         for epoch in range(EPOCHS):
             self.run_epoch()
+
+    def save_model(self):
+        torch.save(self.model.state_dict(), 'SVP_Seg.pth')
+
+    def test_model(self):
+        self.tester.test_pulsation_mask()
 

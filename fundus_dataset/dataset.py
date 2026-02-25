@@ -6,9 +6,10 @@ import matplotlib.pyplot as plt
 import sys
 
 class FundusDataset(Dataset):
-    def __init__(self, data_dict, transform=None):
+    def __init__(self, data_dict, transform=None, testing=False):
         self.data = data_dict
         self.transform = transform
+        self.testing = testing
 
     def __len__(self):
         return len(self.data)
@@ -103,6 +104,8 @@ class FundusDataset(Dataset):
         # print(f'Mask After Type: {mask.dtype}')
         # print("Mask After min/max:", mask.min(), mask.max())
         # print('\n')
-        return enhanced_image, mask, image, metadata
+        if self.testing:
+            return enhanced_image, mask, image, metadata
+        return enhanced_image, mask, image
 
         # https://www.frontiersin.org/journals/medicine/articles/10.3389/fmed.2024.1470941/full

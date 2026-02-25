@@ -3,6 +3,7 @@ from monai.metrics import DiceMetric, MeanIoU, ConfusionMatrixMetric, ROCAUCMetr
 from sklearn.metrics import accuracy_score, f1_score, jaccard_score, precision_score, recall_score
 from monai.transforms import Activations, AsDiscrete
 import torch
+from pathlib import Path
 
 
 class Test:
@@ -109,8 +110,9 @@ class Test:
 
 
     def test_pulsation_mask(self):
+        # self.load_model()
+
         pairs = {}
-        self.model.eval()
         with torch.no_grad():
             for batch in self.testing_loader:
                 X_image, y_mask, original_image, metadata = batch
@@ -141,6 +143,8 @@ class Test:
                         "mask": y_mask[i],
                         "original": original_image[i],
                         "frame": frames[i],
+                        'SVP': svp_class[i],
+                        'Disease': disease[i]
                     }
 
                     # When both min and max exist
@@ -148,13 +152,19 @@ class Test:
 
                         min_data = pairs[title]["min"]
                         max_data = pairs[title]["max"]
-
+                        svp = min_data['SVP']
+                        disease_present = min_data['Disease']
+                        print(f'SVP Present: {svp}')
+                        print(f'Disease: {disease_present}')
                         # Add batch dimension
                         min_img = min_data["image"].unsqueeze(0)
                         max_img = max_data["image"].unsqueeze(0)
 
                         min_mask = min_data["mask"].unsqueeze(0)
                         max_mask = max_data["mask"].unsqueeze(0)
+
+                        print(f'Min Shape: {min_img.shape}')
+                        print(f'Max Shape: {max_img.shape}')
 
                         # Forward pass
                         y_min = self.model(min_img)
@@ -178,12 +188,23 @@ class Test:
                         pulsation_gt = torch.abs(max_mask - min_mask)
 
                         # Visualize
-                        self.visuals.plot_image_results(
-                            min_data["original"],
-                            pulsation_gt[0],
-                            pulsation_pred[0]
+                        self.visuals.plot_pulsation_masks(
+                            max_mask.squeeze(0),
+                            min_mask.squeeze(0),
+                            y_max.squeeze(0),
+                            y_min.squeeze(0)
                         )
 
                         # Remove processed pair (prevents memory growth)
                         del pairs[title]
 
+
+
+    def load_model(self):
+        # Portable Root
+        ROOT = Path(__file__).resolve().parents[1]
+        MODEL_PATH = ROOT / 'results' / 'SVP_Seg.pth'
+        # Load Model Weights
+        self.model.load_state_dict(torch.load(MODEL_PATH))
+        print(f'Loading Model from... {MODEL_PATH}')
+        self.model.eval()  # Set to evaluation mode
