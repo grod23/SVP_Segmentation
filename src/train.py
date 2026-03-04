@@ -6,6 +6,8 @@ import torch
 from torch.nn import BCELoss, BCEWithLogitsLoss
 from monai.losses import DiceLoss, DiceCELoss, DiceFocalLoss, TverskyLoss, MaskedDiceLoss, GeneralizedDiceLoss
 from monai.engines import SupervisedTrainer, SupervisedEvaluator
+from pathlib import Path
+import sys
 
 
 print(f'Device Available: {torch.cuda.is_available()}')
@@ -42,7 +44,7 @@ class Train:
         #     batch=True
         # )
         # weight for positive class (foreground)
-        pos_weight = torch.tensor([2.0]).to(DEVICE)  # increase to penalize oversegmentation
+        pos_weight = torch.tensor([0.5]).to(DEVICE)  # Decrease to penalize oversegmentation
         self.loss_fn = BCEWithLogitsLoss(pos_weight=pos_weight)
 
 
@@ -93,7 +95,7 @@ class Train:
         self.model.train()
         for train_batch in self.training_loader:
             self.optimizer.zero_grad()
-            X_image, y_mask, _ = train_batch
+            X_image, y_mask = train_batch
             # Convert to GPU
             X_image = X_image.to(DEVICE, non_blocking=torch.cuda.is_available())
             y_mask = y_mask.to(DEVICE, non_blocking=torch.cuda.is_available())
@@ -111,7 +113,7 @@ class Train:
         self.model.eval()
         with torch.no_grad():
             for val_batch in self.validation_loader:
-                X_image, y_mask, _ = val_batch
+                X_image, y_mask = val_batch
                 X_image = X_image.to(DEVICE, non_blocking=torch.cuda.is_available())
                 y_mask = y_mask.to(DEVICE, non_blocking=torch.cuda.is_available())
                 y_predicted = self.model(X_image)
@@ -131,6 +133,22 @@ class Train:
     def save_model(self):
         torch.save(self.model.state_dict(), 'SVP_Seg.pth')
 
-    def test_model(self):
+    def test_model(self, load_model=True):
+        if load_model:
+            self.load_model()
+        self.model.eval()
+        self.tester.test_model()
         self.tester.test_pulsation_mask()
+
+    def load_model(self):
+        ROOT = Path(__file__).resolve().parents[1]
+        MODEL_PATH = ROOT / 'results' / 'SVP_Seg.pth'
+
+        if not MODEL_PATH.exists():
+            raise FileNotFoundError(f"Model checkpoint not found at: {MODEL_PATH}")
+
+        self.model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
+        print(f"Model loaded from: {MODEL_PATH}")
+        self.model.eval()
+
 

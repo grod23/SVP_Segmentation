@@ -7,7 +7,7 @@ def main():
     train.train()
     # train.logger.display_loss()
     # train.save_model()
-    train.test_model()
+    train.test_model(load_model=False)
 
     # train.datautils.clear_cache()
 

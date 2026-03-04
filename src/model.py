@@ -3,6 +3,7 @@ from monai.networks.nets import (
     UNet, AttentionUnet, SegResNetDS, DynUNet, BasicUNetPlusPlus, FlexibleUNet,
     UNETR, SwinUNETR
 )
+import torch
 import torch.nn as nn
 
 
@@ -68,6 +69,13 @@ class Segmentation_Model(nn.Module):
 
 
     def forward(self, X_image):
-        return self.backbone(X_image)
+        # images: [B, 2, 1, H, W]
+        img_min = X_image[:, 0]  # [B, 1, H, W]
+        img_max = X_image[:, 1]  # [B, 1, H, W]
+
+        out_min = self.backbone(img_min)  # [B, 1, H, W]
+        out_max = self.backbone(img_max)  # [B, 1, H, W]
+
+        return torch.stack([out_min, out_max], dim=1)  # [B, 2, 1, H, W]
 
 

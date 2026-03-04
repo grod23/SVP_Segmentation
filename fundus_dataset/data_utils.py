@@ -1,5 +1,5 @@
 import torch
-from src.config import METADATA, TRAIN_SPLIT, BATCH_SIZE, NUM_WORKERS, CACHE_DIR
+from src.config import METADATA, TRAIN_SPLIT, DUAL_TRAIN_SPLIT, BATCH_SIZE, NUM_WORKERS, CACHE_DIR
 from fundus_dataset import Transform, FundusDataset
 # from monai.data import DataLoader
 from torch.utils.data import DataLoader
@@ -13,6 +13,7 @@ import os
 class DataUtils:
     def __init__(self):
         self.train_split = TRAIN_SPLIT
+        self.dual_train_split = DUAL_TRAIN_SPLIT
         self.metadata = METADATA
         self.transform = Transform()
 
@@ -29,7 +30,8 @@ class DataUtils:
             shutil.rmtree(CACHE_DIR)
 
     def load_split(self):
-        train, validation, test = joblib.load(self.train_split)
+        # train, validation, test = joblib.load(self.train_split)
+        train, validation, test = joblib.load(self.dual_train_split)
         return train, validation, test
 
     def create_datasets(self):

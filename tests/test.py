@@ -1,210 +1,284 @@
-from src.config import DEVICE, ViDEO_TITLE_KEY, FRAME_KEY, MIN_MAX_KEY, DISEASE_KEY, SVP_CLASS_KEY
-from monai.metrics import DiceMetric, MeanIoU, ConfusionMatrixMetric, ROCAUCMetric
-from sklearn.metrics import accuracy_score, f1_score, jaccard_score, precision_score, recall_score
+from src.config import DEVICE, VIDEO_TITLE_KEY, FRAME_KEY, MIN_MAX_KEY, DISEASE_KEY, SVP_CLASS_KEY
+from monai.metrics import DiceMetric, MeanIoU, ConfusionMatrixMetric
 from monai.transforms import Activations, AsDiscrete
+from sklearn.metrics import accuracy_score, f1_score, jaccard_score, precision_score, recall_score
 import torch
-from pathlib import Path
+import os
 
 
 class Test:
     def __init__(self, model, testing_loader, logger, visuals):
-        self.model = model
+        self.model          = model
         self.testing_loader = testing_loader
-        self.logger = logger
-        self.visuals = visuals
-        # Metrics
-        self.dice_metric = DiceMetric(
-            include_background=True,
-            reduction="mean"
-        )
-        self.iou_metric = MeanIoU(
-            include_background=True
-        )
+        self.logger         = logger
+        self.visuals        = visuals
+
+        # MONAI metrics
+        self.dice_metric      = DiceMetric(include_background=True, reduction="mean")
+        self.iou_metric       = MeanIoU(include_background=True)
         self.confusion_metric = ConfusionMatrixMetric(
             metric_name=["sensitivity", "specificity", "precision"],
             include_background=True
         )
-        self.roc_auc_metric = ROCAUCMetric()
-        # Post-processing
-        self.sigmoid = Activations(sigmoid=True)
-        self.threshold = AsDiscrete(threshold=0.7)
 
+        # Post-processing: raw logits → sigmoid → threshold
+        self.sigmoid   = Activations(sigmoid=True)
+        self.threshold = AsDiscrete(threshold=0.5)
+
+    def _postprocess(self, raw_logits):
+        """Convert raw model output to binary predictions."""
+        probs = self.sigmoid(raw_logits)
+        return self.threshold(probs), probs
+
+    def _reset_metrics(self):
+        self.dice_metric.reset()
+        self.iou_metric.reset()
+        self.confusion_metric.reset()
+
+    # ─────────────────────────────────────────────────────────────────
+    # Standard evaluation
+    # ─────────────────────────────────────────────────────────────────
 
     def test_model(self):
-        # Reset metrics at start of validation
-        self.dice_metric.reset()
-        self.iou_metric.reset()
-        self.confusion_metric.reset()
-        self.roc_auc_metric.reset()
-        self.model.eval()
+        self._reset_metrics()
+        all_preds, all_targets = [], []
+
         with torch.no_grad():
             for batch in self.testing_loader:
-                X_image, y_mask, original_image, metadata = batch
+                X_image, y_mask, original_images, metadata = batch
                 X_image = X_image.to(DEVICE, non_blocking=torch.cuda.is_available())
-                y_mask = y_mask.to(DEVICE, non_blocking=torch.cuda.is_available())
+                y_mask  = y_mask.to(DEVICE,  non_blocking=torch.cuda.is_available())
+
                 y_predicted = self.model(X_image)
-                ##########Converting predicted mask to binary##########
-                min_val = y_predicted.min()
-                max_val = y_predicted.max()
-                if max_val > min_val:
-                    y_predicted = (y_predicted - min_val) / (max_val - min_val)
-                    y_predicted = (y_predicted > 0.5).float()
-                else:
-                    y_predicted = torch.zeros_like(y_predicted, dtype=torch.float32)
-                self.visuals.plot_image_results(original_image[0], y_mask[0], y_predicted[0])
-                ##########################################################
-                # ---- Post-processing ----
-                probs = self.sigmoid(y_predicted)
-                preds = self.threshold(probs)
-                # ---- Metrics ----
-                self.dice_metric(preds, y_mask)
-                self.iou_metric(preds, y_mask)
-                self.confusion_metric(preds, y_mask)
 
-                # Move tensors to CPU and convert to NumPy
-                y_mask_np = y_mask.detach().cpu().numpy().flatten()
-                y_predicted_np = preds.detach().cpu().numpy().flatten()
-                # SKLearn Metrics
-                score_jaccard = jaccard_score(y_mask_np, y_predicted_np, average='binary')
-                score_f1 = f1_score(y_mask_np, y_predicted_np, average='binary')
-                score_recall = recall_score(y_mask_np, y_predicted_np, average='binary')
-                score_precision = precision_score(y_mask_np, y_predicted_np, average='binary')
-                score_accuracy = accuracy_score(y_mask_np, y_predicted_np)
-                print(
-                    f"Epoch {self.logger.current_epoch} | "
-                    f"Jaccard: {score_jaccard:.4f} | "
-                    f"F1 Score: {score_f1:.4f} | "
-                    f"Recall: {score_recall:.4f} | "
-                    f"Precision: {score_precision:.4f} | "
-                    f"Accuracy: {score_accuracy:.4f} | "
-                )
+                B, H, W     = X_image.shape[0], X_image.shape[-2], X_image.shape[-1]
+                y_predicted_flat = y_predicted.view(B * 2, 1, H, W)
+                y_mask_flat      = y_mask.view(B * 2, 1, H, W)
 
+                preds, _ = self._postprocess(y_predicted_flat)
 
-                # ROC-AUC uses probabilities (no threshold)
-                # self.roc_auc_metric(probs, y_mask)
+                self.dice_metric(preds, y_mask_flat)
+                self.iou_metric(preds, y_mask_flat)
+                self.confusion_metric(preds, y_mask_flat)
+
+                all_preds.append(preds.detach().cpu().flatten())
+                all_targets.append(y_mask_flat.detach().cpu().flatten())
 
         dice = self.dice_metric.aggregate().item()
-        iou = self.iou_metric.aggregate().item()
-
+        iou  = self.iou_metric.aggregate().item()
         sensitivity, specificity, precision = self.confusion_metric.aggregate()
-        sensitivity = sensitivity.item()
-        specificity = specificity.item()
-        precision = precision.item()
+        self._reset_metrics()
 
-        # roc_auc = self.roc_auc_metric.aggregate().item()
+        y_true = torch.cat(all_targets).numpy()
+        y_pred = torch.cat(all_preds).numpy()
 
-        self.dice_metric.reset()
-        self.iou_metric.reset()
-        self.confusion_metric.reset()
-        # self.roc_auc_metric.reset()
+        sklearn_scores = {
+            "Jaccard":   jaccard_score(y_true, y_pred, average='binary'),
+            "F1":        f1_score(y_true, y_pred, average='binary'),
+            "Recall":    recall_score(y_true, y_pred, average='binary'),
+            "Precision": precision_score(y_true, y_pred, average='binary'),
+            "Accuracy":  accuracy_score(y_true, y_pred),
+        }
 
+        epoch = self.logger.current_epoch
         print(
-            f"Epoch {self.logger.current_epoch} | "
-            f"Dice: {dice:.4f} | "
-            f"IoU: {iou:.4f} | "
-            f"Sensitivity: {sensitivity:.4f} | "
-            f"Specificity: {specificity:.4f} | "
-            f"Precision: {precision:.4f} | "
-            # f"AUC: {roc_auc:.4f}"
+            f"Epoch {epoch} | "
+            f"Dice: {dice:.4f} | IoU: {iou:.4f} | "
+            f"Sensitivity: {sensitivity.item():.4f} | "
+            f"Specificity: {specificity.item():.4f} | "
+            f"Precision: {precision.item():.4f}"
+        )
+        print(
+            f"Epoch {epoch} [sklearn] | "
+            + " | ".join(f"{k}: {v:.4f}" for k, v in sklearn_scores.items())
         )
 
+    # ─────────────────────────────────────────────────────────────────
+    # Pulsation mask creation
+    # ─────────────────────────────────────────────────────────────────
 
-    def test_pulsation_mask(self):
-        # self.load_model()
+    def create_pulsation_mask(self, trough_mask, peak_mask,
+                              save_path: str = "pulsation.gif",
+                              amplify: float = 2.0):
+        """
+        Thin wrapper so test.py can call visuals.create_pulsation_mask
+        with consistent defaults suited to retinal vessel pulsation.
 
-        pairs = {}
+        Args:
+            trough_mask : tensor [1, H, W]  – diastole / min frame prediction
+            peak_mask   : tensor [1, H, W]  – systole  / max frame prediction
+            save_path   : output GIF filepath
+            amplify     : morphological dilation iterations on diff zones.
+                          Default 2.0 — widens 1-2px vessel boundary changes
+                          so they are visible in the animation.
+                          Set to 1.0 to show true pixel-level difference only.
+        """
+        return self.visuals.create_pulsation_mask(
+            trough_mask=trough_mask,
+            peak_mask=peak_mask,
+            save_path=save_path,
+            n_frames=30,
+            fps=15,
+            amplify=amplify,
+        )
+
+    # ─────────────────────────────────────────────────────────────────
+    # Pulsation test loop
+    # ─────────────────────────────────────────────────────────────────
+
+    def test_pulsation_mask(self, output_dir: str = "outputs/pulsation"):
+        """
+        For each sample in the test set:
+          1. Run backbone on trough and peak frames independently.
+          2. Postprocess both predictions to binary masks.
+          3. Save a pulsation GIF + static comparison figure.
+
+        Args:
+            output_dir : directory where GIFs and figures are saved.
+        """
+        os.makedirs(output_dir, exist_ok=True)
+
         with torch.no_grad():
-            for batch in self.testing_loader:
-                X_image, y_mask, original_image, metadata = batch
-
-                video_titles = metadata[ViDEO_TITLE_KEY]
-                frames = metadata[FRAME_KEY]
-                min_max_values = metadata[MIN_MAX_KEY]
-                disease = metadata[DISEASE_KEY]
-                svp_class = metadata[SVP_CLASS_KEY]
+            for batch_idx, batch in enumerate(self.testing_loader):
+                X_image, y_mask, original_images, metadata = batch
 
                 X_image = X_image.to(DEVICE, non_blocking=torch.cuda.is_available())
-                y_mask = y_mask.to(DEVICE, non_blocking=torch.cuda.is_available())
+                y_mask  = y_mask.to(DEVICE,  non_blocking=torch.cuda.is_available())
 
-                X_image = X_image.to(DEVICE, non_blocking=torch.cuda.is_available())
-                y_mask = y_mask.to(DEVICE, non_blocking=torch.cuda.is_available())
+                # Split paired frames: each [B, 1, H, W]
+                img_min,  img_max  = X_image[:, 0], X_image[:, 1]
+                mask_min, mask_max = y_mask[:, 0],  y_mask[:, 1]
 
-                batch_size = len(video_titles)
+                # Independent backbone predictions for trough and peak
+                y_trough_raw = self.model.backbone(img_min)   # [B, 1, H, W]  raw logits
+                y_peak_raw   = self.model.backbone(img_max)   # [B, 1, H, W]  raw logits
 
-                for i in range(batch_size):
-                    title = video_titles[i]
-                    min_max = min_max_values[i]
+                # ── Diagnostic: raw backbone output ──────────────────
+                print("\n── Backbone raw output (trough) ──")
+                print(f"  shape  : {y_trough_raw.shape}")
+                print(f"  dtype  : {y_trough_raw.dtype}")
+                print(f"  min    : {y_trough_raw.min():.4f}")
+                print(f"  max    : {y_trough_raw.max():.4f}")
+                print(f"  mean   : {y_trough_raw.mean():.4f}")
+                print(f"  unique : {y_trough_raw.unique()[:10].tolist()}")
 
-                    if title not in pairs:
-                        pairs[title] = {}
+                print("\n── Backbone raw output (peak) ──")
+                print(f"  shape  : {y_peak_raw.shape}")
+                print(f"  dtype  : {y_peak_raw.dtype}")
+                print(f"  min    : {y_peak_raw.min():.4f}")
+                print(f"  max    : {y_peak_raw.max():.4f}")
+                print(f"  mean   : {y_peak_raw.mean():.4f}")
+                print(f"  unique : {y_peak_raw.unique()[:10].tolist()}")
 
-                    pairs[title][min_max] = {
-                        "image": X_image[i],
-                        "mask": y_mask[i],
-                        "original": original_image[i],
-                        "frame": frames[i],
-                        'SVP': svp_class[i],
-                        'Disease': disease[i]
-                    }
+                # ── Diagnostic: ground truth masks ───────────────────
+                print("\n── GT mask (trough / min) ──")
+                print(f"  shape  : {mask_min.shape}")
+                print(f"  dtype  : {mask_min.dtype}")
+                print(f"  min    : {mask_min.min():.4f}")
+                print(f"  max    : {mask_min.max():.4f}")
+                print(f"  unique : {mask_min.unique()[:10].tolist()}")
+                print(f"  #fg px : {mask_min.sum().item():.0f}")
 
-                    # When both min and max exist
-                    if "min" in pairs[title] and "max" in pairs[title]:
+                print("\n── GT mask (peak / max) ──")
+                print(f"  shape  : {mask_max.shape}")
+                print(f"  dtype  : {mask_max.dtype}")
+                print(f"  min    : {mask_max.min():.4f}")
+                print(f"  max    : {mask_max.max():.4f}")
+                print(f"  unique : {mask_max.unique()[:10].tolist()}")
+                print(f"  #fg px : {mask_max.sum().item():.0f}")
 
-                        min_data = pairs[title]["min"]
-                        max_data = pairs[title]["max"]
-                        svp = min_data['SVP']
-                        disease_present = min_data['Disease']
-                        print(f'SVP Present: {svp}')
-                        print(f'Disease: {disease_present}')
-                        # Add batch dimension
-                        min_img = min_data["image"].unsqueeze(0)
-                        max_img = max_data["image"].unsqueeze(0)
+                # Soft probabilities (sigmoid only — no threshold yet)
+                y_trough_prob = self.sigmoid(y_trough_raw)   # [B, 1, H, W]  in (0, 1)
+                y_peak_prob   = self.sigmoid(y_peak_raw)     # [B, 1, H, W]  in (0, 1)
 
-                        min_mask = min_data["mask"].unsqueeze(0)
-                        max_mask = max_data["mask"].unsqueeze(0)
+                # ── Diagnostic: soft probs ────────────────────────────
+                print("\n── Soft probs (trough) ──")
+                print(f"  prob min/max/mean: {y_trough_prob.min():.4f} / {y_trough_prob.max():.4f} / {y_trough_prob.mean():.4f}")
+                print("\n── Soft probs (peak) ──")
+                print(f"  prob min/max/mean: {y_peak_prob.min():.4f} / {y_peak_prob.max():.4f} / {y_peak_prob.mean():.4f}")
 
-                        print(f'Min Shape: {min_img.shape}')
-                        print(f'Max Shape: {max_img.shape}')
+                # ── Strategy: normalise then diff ─────────────────────
+                # The backbone was trained as part of a paired model and never
+                # produces negative logits in isolation — all pixels exceed the
+                # 0.5 threshold. Fix: normalise each prob map to [0,1] relative
+                # to itself (removes global offset bias), then threshold the
+                # signed difference to isolate genuine dilation / contraction.
+                def normalise(t):
+                    mn, mx = t.min(), t.max()
+                    return (t - mn) / (mx - mn + 1e-8)
 
-                        # Forward pass
-                        y_min = self.model(min_img)
-                        y_max = self.model(max_img)
+                y_trough_norm = normalise(y_trough_prob)   # [B, 1, H, W]
+                y_peak_norm   = normalise(y_peak_prob)     # [B, 1, H, W]
 
-                        # Normalize + threshold
-                        def binarize(pred):
-                            min_val = pred.min()
-                            max_val = pred.max()
-                            if max_val > min_val:
-                                pred = (pred - min_val) / (max_val - min_val)
-                                return (pred > 0.5).float()
-                            else:
-                                return torch.zeros_like(pred)
+                prob_diff = y_peak_norm - y_trough_norm    # +ve = dilated, -ve = contracted
 
-                        y_min = binarize(y_min)
-                        y_max = binarize(y_max)
+                # Tune DIFF_THRESHOLD down if diff pixels still reads 0
+                DIFF_THRESHOLD = 0.05
+                pred_dilation    = (prob_diff >  DIFF_THRESHOLD).float()
+                pred_contraction = (prob_diff < -DIFF_THRESHOLD).float()
 
-                        # Example pulsation difference
-                        pulsation_pred = torch.abs(y_max - y_min)
-                        pulsation_gt = torch.abs(max_mask - min_mask)
+                print(f"\n── Prob-diff map (peak_norm - trough_norm) ──")
+                print(f"  min / max / mean : {prob_diff.min():.4f} / {prob_diff.max():.4f} / {prob_diff.mean():.4f}")
+                print(f"  |diff| > {DIFF_THRESHOLD} px  : {(prob_diff.abs() > DIFF_THRESHOLD).sum().item():.0f}")
+                print(f"  dilation px      : {pred_dilation.sum().item():.0f}")
+                print(f"  contraction px   : {pred_contraction.sum().item():.0f}")
+                print(f"  GT diff px       : {(mask_max != mask_min).float().sum().item():.0f}")
 
-                        # Visualize
-                        self.visuals.plot_pulsation_masks(
-                            max_mask.squeeze(0),
-                            min_mask.squeeze(0),
-                            y_max.squeeze(0),
-                            y_min.squeeze(0)
-                        )
+                # Synthesise binary trough / peak masks for the GIF
+                pred_core    = (y_trough_norm > 0.5).float()
+                y_trough_bin = torch.clamp(pred_core + pred_contraction, 0, 1)
+                y_peak_bin   = torch.clamp(pred_core + pred_dilation,    0, 1)
 
-                        # Remove processed pair (prevents memory growth)
-                        del pairs[title]
+                print(f"\n── Synthesised binary masks ──")
+                print(f"  y_trough_bin #fg px : {y_trough_bin.sum().item():.0f}")
+                print(f"  y_peak_bin   #fg px : {y_peak_bin.sum().item():.0f}")
+                print(f"  diff px             : {(y_peak_bin != y_trough_bin).float().sum().item():.0f}")
+                print(f"  GT diff px          : {(mask_max != mask_min).float().sum().item():.0f}")
 
+                for i in range(X_image.shape[0]):
+                    meta_min  = {k: v[i] for k, v in metadata[0].items()}
+                    svp_label = meta_min[SVP_CLASS_KEY]
+                    disease   = meta_min[DISEASE_KEY]
 
+                    sample_id = f"batch{batch_idx:03d}_sample{i:02d}"
+                    print(f"\n[{sample_id}] SVP: {svp_label} | Disease: {disease}")
 
-    def load_model(self):
-        # Portable Root
-        ROOT = Path(__file__).resolve().parents[1]
-        MODEL_PATH = ROOT / 'results' / 'SVP_Seg.pth'
-        # Load Model Weights
-        self.model.load_state_dict(torch.load(MODEL_PATH))
-        print(f'Loading Model from... {MODEL_PATH}')
-        self.model.eval()  # Set to evaluation mode
+                    # ── Per-sample diagnostics ────────────────────────
+                    print(f"  y_trough_bin[i] #fg px : {y_trough_bin[i].sum().item():.0f}")
+                    print(f"  y_peak_bin[i]   #fg px : {y_peak_bin[i].sum().item():.0f}")
+                    print(f"  mask_min[i]     #fg px : {mask_min[i].sum().item():.0f}")
+                    print(f"  mask_max[i]     #fg px : {mask_max[i].sum().item():.0f}")
+                    sample_diff_pred = (y_peak_bin[i] != y_trough_bin[i]).float().sum().item()
+                    sample_diff_gt   = (mask_max[i]   != mask_min[i]).float().sum().item()
+                    print(f"  Pred diff px (peak vs trough) : {sample_diff_pred:.0f}")
+                    print(f"  GT   diff px (max  vs min   ) : {sample_diff_gt:.0f}")
+                    if sample_diff_pred == 0:
+                        print("  ⚠️  WARNING: still 0 diff — try lowering DIFF_THRESHOLD below 0.05.")
+
+                    # ── 1. Predicted pulsation GIF ────────────────────
+                    gif_path = os.path.join(output_dir, f"{sample_id}_pulsation.gif")
+                    self.create_pulsation_mask(
+                        trough_mask=y_trough_bin[i],
+                        peak_mask=y_peak_bin[i],
+                        save_path=gif_path,
+                        amplify=2.0,
+                    )
+
+                    # ── 2. GT pulsation GIF ──────────────────────────
+                    gt_gif_path = os.path.join(output_dir, f"{sample_id}_gt_pulsation.gif")
+                    self.create_pulsation_mask(
+                        trough_mask=mask_min[i],
+                        peak_mask=mask_max[i],
+                        save_path=gt_gif_path,
+                        amplify=2.0,
+                    )
+
+                    # ── 3. Static 6-panel comparison figure ─────────
+                    fig_path = os.path.join(output_dir, f"{sample_id}_comparison.png")
+                    self.visuals.plot_pulsation_masks(
+                        mask_max=mask_max[i],
+                        mask_min=mask_min[i],
+                        predicted_max=y_peak_bin[i],
+                        predicted_min=y_trough_bin[i],
+                        save_path=fig_path,
+                    )
