@@ -16,12 +16,15 @@ This project focuses on automated segmentation of retinal vessels near the optic
 
 <table>
 <tr>
-<td align="center"><img src="README_Images/Glaugoma_stat.png" width="450"><br><b>Glaucoma Statistics</b></td>
-</tr>
-</table>
-<table>
-<tr>
-<td align="center"><img src="README_Images/TBI_stat.png" width="450"><br><b>Traumatic Brain Injury Death Statistics</b></td>
+<td align="center">
+<img src="README_Images/Glaucoma_stat.png" width="450"><br>
+<b>Glaucoma Statistics</b>
+</td>
+
+<td align="center">
+<img src="README_Images/TBI_stat.png" width="450"><br>
+<b>Traumatic Brain Injury Death Statistics</b>
+</td>
 </tr>
 </table>
 
