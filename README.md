@@ -1,5 +1,9 @@
 # Central Retinal Vessel Segmentation for Spontaneous Venous Pulsations (SVP) Analysis
 
+🏆 Presented at the CSU Student Research Competition in San José, California, representing California State University, Fullerton in Engineering and Computer Science.
+
+This research was selected for presentation alongside student researchers from across the California State University system, highlighting applied computer vision for early screening of eye and brain disease.
+
 ## Computer Vision for Early Screening of Eye and Brain Disease
 
 According to the Centers for Disease Control and Prevention (CDC), approximately 80 million people worldwide are currently living with glaucoma, a number projected to exceed 111 million by 2040. Elevated intracranial pressure (ICP) is also a life-threatening condition associated with traumatic brain injury, stroke, hemorrhage, and neurological damage.
@@ -197,9 +201,3 @@ Over **1 billion people worldwide lack access to eye care**, while smartphone ow
 - Temporal deep learning models  
 - Smartphone deployment  
 - Integration into telehealth systems  
-
----
-
-# Goal
-
-To create an accessible AI-assisted tool that helps detect early warning signs of **eye disease** and **brain pressure abnormalities** through retinal imaging.
