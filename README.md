@@ -60,7 +60,13 @@ The segmentation model uses a **U-Net neural network**, widely used in biomedica
 - Performs well with limited data  
 - Preserves fine vessel details  
 - Produces accurate pixel-level masks  
-- Strong performance on thin structures like retinal vessels  
+- Strong performance on thin structures like retinal vessels
+
+<table>
+<tr>
+<td align="center"><img src="README_Images/Unet_Architecture.webp" width="400"><br><b></b></td>
+</tr>
+</table>
 
 ---
 
