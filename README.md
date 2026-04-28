@@ -84,7 +84,7 @@ SVP is measured by comparing vessel diameter between two states.
 
 <table>
 <tr>
-<td align="center"><img src="README_Images/Vessel_Pulsation.png" width="280"><br><b>Peak (Maximum Diameter)</b></td>
+<td align="center"><img src="README_Images/Vessel_Pulsation.png" width="600"><br><b>Peak (Maximum Diameter)</b></td>
 </tr>
 </table>
 
@@ -98,7 +98,7 @@ Instead of relying only on human observation, this system measures pulsation num
 
 <table>
 <tr>
-<td align="center"><img src="README_Images/Quantification.png" width="500"><br><b>Pixel-Level Vessel Change Measurement</b></td>
+<td align="center"><img src="README_Images/Quantification.png" width="600"><br><b>Pixel-Level Vessel Change Measurement</b></td>
 </tr>
 </table>
 
