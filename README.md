@@ -14,6 +14,17 @@ Spontaneous Venous Pulsation refers to the rhythmic narrowing and widening of th
 
 This project focuses on automated segmentation of retinal vessels near the optic disc to support objective SVP detection and early screening.
 
+<table>
+<tr>
+<td align="center"><img src="README_Images/Glaugoma_stat.png" width="450"><br><b>Glaucoma Statistics</b></td>
+</tr>
+</table>
+<table>
+<tr>
+<td align="center"><img src="README_Images/TBI_stat.png" width="450"><br><b>Traumatic Brain Injury Death Statistics</b></td>
+</tr>
+</table>
+
 ---
 
 # Why This Matters
