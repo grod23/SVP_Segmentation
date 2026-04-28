@@ -64,15 +64,6 @@ The segmentation model uses a **U-Net neural network**, widely used in biomedica
 
 ---
 
-# Full Detection Pipeline
-
-<table>
-<tr>
-<td align="center"><img src="README_Images/Original Image.png" width="240"><br><b>Original</b></td>
-<td align="center"><img src="README_Images/Image CLAHE.png" width="240"><br><b>Preprocessed</b></td>
-<td align="center"><img src="README_Images/Predicted Mask.png" width="240"><br><b>Segmentation Output</b></td>
-</tr>
-</table>
 
 ### Pipeline Steps
 
@@ -93,8 +84,7 @@ SVP is measured by comparing vessel diameter between two states.
 
 <table>
 <tr>
-<td align="center"><img src="README_Images/Peak.png" width="280"><br><b>Peak (Maximum Diameter)</b></td>
-<td align="center"><img src="README_Images/Trough.png" width="280"><br><b>Trough (Minimum Diameter)</b></td>
+<td align="center"><img src="README_Images/Vessel_Pulsation.png" width="280"><br><b>Peak (Maximum Diameter)</b></td>
 </tr>
 </table>
 
