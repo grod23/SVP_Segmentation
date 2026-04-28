@@ -156,7 +156,13 @@ This project is designed as an **early warning support system**.
 - Faster recognition of elevated ICP  
 - Supports physician decision-making  
 - Standardizes screening quality  
-- Expands access using portable devices  
+- Expands access using portable devices
+
+<table>
+<tr>
+<td align="center"><img src="README_Images/Clinical_Significance.jpg" width="450"><br><b>Cell Phone Screening</b></td>
+</tr>
+</table>
 
 Over **1 billion people worldwide lack access to eye care**, while smartphone ownership continues to rise.
 
@@ -168,7 +174,13 @@ Over **1 billion people worldwide lack access to eye care**, while smartphone ow
 - Eye movement may reduce accuracy  
 - Small training dataset (~635 recordings)  
 - Clinical validation ongoing  
-- Lighting and camera quality affect results  
+- Lighting and camera quality affect results
+
+<table>
+<tr>
+<td align="center"><img src="README_Images/Optic_Disc.webp" width="450"><br><b>Optic Disc</b></td>
+</tr>
+</table>
 
 ---
 
