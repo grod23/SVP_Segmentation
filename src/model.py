@@ -1,81 +1,86 @@
-from src.config import IMAGE_SIZE, IN_CHANNELS, OUT_CHANNELS, SPATIAL_DIMS
-from monai.networks.nets import (
-    UNet, AttentionUnet, SegResNetDS, DynUNet, BasicUNetPlusPlus, FlexibleUNet,
-    UNETR, SwinUNETR
-)
+from monai.networks.nets import UNet
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
-class Backbone(nn.Module):
-    def __init__(self, backbone_name):
+# ═══════════════════════════════════════════════════════════════════════════
+#  SimpleUNet  —  Baseline model
+#
+#  Takes paired input [B, 2, 1, H, W], segments each frame independently
+#  through a shared UNet backbone, returns both segmentations.
+#
+#  This is the clean baseline before adding optic disc localisation.
+# ═══════════════════════════════════════════════════════════════════════════
+
+class SimpleUNet(nn.Module):
+    def __init__(self, in_channels: int = 1):
         super().__init__()
-        self.backbone_name = backbone_name.lower()
-        if self.backbone_name == 'unet':
-            self.backbone = UNet(
-                spatial_dims=SPATIAL_DIMS,
-                in_channels=IN_CHANNELS,
-                out_channels=OUT_CHANNELS,
-                channels=(16, 32, 64, 128, 256),
-                strides=(2, 2, 2, 2),
-                num_res_units=2
-            )
-        elif self.backbone_name == 'attentionunet':
-            self.backbone = AttentionUnet(
-                spatial_dims=SPATIAL_DIMS,
-                in_channels=IN_CHANNELS,
-                out_channels=OUT_CHANNELS,
-                channels=(16, 32, 64, 128, 256),
-                strides=(2, 2, 2, 2)
-            )
-        elif self.backbone_name == 'segresnetds':
-            self.backbone = SegResNetDS(
-                spatial_dims=SPATIAL_DIMS,
-                in_channels=IN_CHANNELS,
-                out_channels=OUT_CHANNELS,
-            )
-        elif self.backbone_name == 'dynunet':
-            self.backbone = DynUNet(
-                spatial_dims=2,
-                in_channels=IN_CHANNELS,
-                out_channels=OUT_CHANNELS,
-                kernel_size=[[3,3]]*4,
-                strides=[[2,2]]*4,
-                filters=[16, 32, 64, 128, 256],
-                # upsample_kernel_size=
-            )
-        elif self.backbone_name == 'basicunetplusplus':
-            self.backbone = BasicUNetPlusPlus(
-                spatial_dims=2,
-                in_channels=IN_CHANNELS,
-                out_channels=OUT_CHANNELS,
-                features=(16, 32, 64, 128)
-            )
-        elif self.backbone_name == 'flexibleunet':
-            self.backbone = FlexibleUNet(
-                spatial_dims=2,
-                in_channels=IN_CHANNELS,
-                out_channels=OUT_CHANNELS,
-                backbone='resnet101'
-            )
+        self.backbone = UNet(
+            spatial_dims=2,
+            in_channels=in_channels,
+            out_channels=1,
+            channels=(16, 32, 64, 128, 256),
+            strides=(2, 2, 2, 2),
+            num_res_units=2,
+        )
 
     def forward(self, X_image):
-        return self.backbone(X_image)
+        """
+        Args:
+            X_image : [B, 2, 1, H, W]  paired frames (trough=0, peak=1)
+        Returns:
+            [B, 2, 1, H, W]  segmentation logits for both frames
+        """
+        img_trough = X_image[:, 0]                          # [B, 1, H, W]
+        img_peak   = X_image[:, 1]                          # [B, 1, H, W]
+        out_trough = self.backbone(img_trough)              # [B, 1, H, W]
+        out_peak   = self.backbone(img_peak)                # [B, 1, H, W]
+        return torch.stack([out_trough, out_peak], dim=1)   # [B, 2, 1, H, W]
 
-class Segmentation_Model(nn.Module):
-    def __init__(self, backbone_name):
+
+# Alias
+Segmentation_Model = SimpleUNet
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  SegmentationLoss  —  Simple Dice + BCE
+#
+#  Applied independently to each frame then averaged.
+#  No pulsation loss, no size loss, no sparsity — just clean segmentation.
+# ═══════════════════════════════════════════════════════════════════════════
+
+class SegmentationLoss(nn.Module):
+    def __init__(self, pos_weight: float = 65.0):
+        """
+        Args:
+            pos_weight : BCE positive class weight.
+                         ~65 for 1.5% foreground (vessel pixels).
+        """
         super().__init__()
-        self.backbone = Backbone(backbone_name)
+        self.register_buffer('pw', torch.tensor([pos_weight]))
 
+    def forward(self, y_pred, y_mask):
+        """
+        Args:
+            y_pred  : [B, 2, 1, H, W]  raw logits
+            y_mask  : [B, 2, 1, H, W]  binary GT masks
+        Returns:
+            loss (scalar), components dict
+        """
+        pred_trough = y_pred[:, 0]
+        pred_peak   = y_pred[:, 1]
+        mask_trough = y_mask[:, 0].float()
+        mask_peak   = y_mask[:, 1].float()
 
-    def forward(self, X_image):
-        # images: [B, 2, 1, H, W]
-        img_min = X_image[:, 0]  # [B, 1, H, W]
-        img_max = X_image[:, 1]  # [B, 1, H, W]
+        loss = (self._bce_dice(pred_trough, mask_trough) +
+                self._bce_dice(pred_peak,   mask_peak)) / 2.0
 
-        out_min = self.backbone(img_min)  # [B, 1, H, W]
-        out_max = self.backbone(img_max)  # [B, 1, H, W]
+        return loss, {'seg': loss.item(), 'total': loss.item()}
 
-        return torch.stack([out_min, out_max], dim=1)  # [B, 2, 1, H, W]
-
-
+    def _bce_dice(self, logits, target):
+        pw       = self.pw.to(logits.device)
+        bce      = nn.BCEWithLogitsLoss(pos_weight=pw)(logits, target)
+        prob     = torch.sigmoid(logits)
+        dice     = 1.0 - (2.0*(prob*target).sum()) / (prob.sum()+target.sum()+1e-6)
+        return (bce + dice) / 2.0

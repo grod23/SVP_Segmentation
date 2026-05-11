@@ -37,10 +37,10 @@ SVP_CLASS_KEY = 'SVP'
 # ========================
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 NUM_WORKERS = 0
-EPOCHS = 15
-LEARNING_RATE = 0.001
-BATCH_SIZE = 12
-WEIGHT_DECAY = 0.01
+EPOCHS = 30
+LEARNING_RATE = 0.0001
+BATCH_SIZE = 8
+WEIGHT_DECAY = 0.03
 IMAGE_SIZE = (512, 512)
 
 # ========================

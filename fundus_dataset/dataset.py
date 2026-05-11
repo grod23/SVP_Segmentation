@@ -40,6 +40,8 @@ class FundusDataset(Dataset):
                 mask = (mask > 0.5).float()
             else:
                 mask = torch.zeros_like(mask, dtype=torch.float32)
+
+            mask = 1.0 - mask
             return mask.unsqueeze(0)  # [1, H, W]
 
         # Split [6, H, W] -> two [3, H, W]

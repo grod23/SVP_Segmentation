@@ -4,7 +4,7 @@ import numpy as np
 from monai.transforms import (
     Compose, LoadImaged, EnsureTyped, NormalizeIntensityd, Resized, ToTensord,
     DeleteItemsd, RandRotate90d,  RandFlipd, ScaleIntensityRanged, RandShiftIntensityd, RandGaussianNoised,
-    RandGaussianSmoothd, RandScaleIntensityd)
+    RandGaussianSmoothd, RandScaleIntensityd, RandZoomd)
 
 """Transformation class for loading MONAI transform compositions to PyTorch datasets"""
 class Transform:
@@ -39,6 +39,33 @@ class Transform:
             # RandRotate90d(
             #     keys=[IMAGE_KEY, MASK_KEY],
             #     prob=0.5
+            # )
+            # RandFlipd(
+            #     keys=[IMAGE_KEY, MASK_KEY],
+            #     prob=0.5,
+            #     spatial_axis=0
+            # ),
+            # RandFlipd(
+            #     keys=[IMAGE_KEY, MASK_KEY],
+            #     prob=0.5,
+            #     spatial_axis=1
+            # ),
+            # RandZoomd(
+            #     keys=[IMAGE_KEY, MASK_KEY],
+            #     prob=0.3,
+            #     min_zoom=0.9,
+            #     max_zoom=1.1,
+            #     mode=['bilinear', 'nearest']
+            # )
+            # RandGaussianNoised(
+            #     keys=[IMAGE_KEY],
+            #     prob=0.2,
+            #     std=0.01
+            # ),
+            # RandScaleIntensityd(
+            #     keys=[IMAGE_KEY],
+            #     prob=0.3,
+            #     factors=0.1
             # )
         ])
 

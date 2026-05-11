@@ -1,130 +1,65 @@
 from src.config import DEVICE, EPOCHS, LEARNING_RATE, WEIGHT_DECAY
 from src.logger import Logger
-from src.model import Segmentation_Model
+from src.model import SimpleUNet, SegmentationLoss
 from src import DataUtils, Test, Visualizer
 import torch
-from torch.nn import BCELoss, BCEWithLogitsLoss
-from monai.losses import DiceLoss, DiceCELoss, DiceFocalLoss, TverskyLoss, MaskedDiceLoss, GeneralizedDiceLoss
-from monai.engines import SupervisedTrainer, SupervisedEvaluator
 from pathlib import Path
-import sys
-
 
 print(f'Device Available: {torch.cuda.is_available()}')
 
 
 class Train:
     def __init__(self):
-        # Init Dataloaders
         self.datautils = DataUtils()
         (
             self.training_loader,
             self.validation_loader,
             self.testing_loader,
         ) = self.datautils.create_dataloaders()
-        self.logger = Logger(len(self.training_loader), len(self.validation_loader))
-        self.model = Segmentation_Model(backbone_name='attentionunet').to(DEVICE)
+
+        self.logger  = Logger(len(self.training_loader), len(self.validation_loader))
+        self.model   = SimpleUNet(in_channels=1).to(DEVICE)
         self.visuals = Visualizer(self.logger)
-        self.tester = Test(self.model, self.testing_loader, self.logger, self.visuals)
+        self.tester  = Test(self.model, self.testing_loader, self.logger, self.visuals)
+
         self.optimizer = torch.optim.AdamW(
             params=self.model.parameters(),
             lr=LEARNING_RATE,
-            weight_decay=WEIGHT_DECAY
+            weight_decay=WEIGHT_DECAY,
         )
-        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer,
-                                                                    mode='min',
-                                                                    factor=0.5,
-                                                                    patience=3)
-        # self.loss_fn = TverskyLoss(
-        #     sigmoid=True,
-        #     alpha=0.8,  # penalize FP
-        #     beta=0.2,  # allow small FN
-        #     smooth_nr=1e-5,
-        #     smooth_dr=1e-5,
-        #     batch=True
-        # )
-        # weight for positive class (foreground)
-        pos_weight = torch.tensor([0.5]).to(DEVICE)  # Decrease to penalize oversegmentation
-        self.loss_fn = BCEWithLogitsLoss(pos_weight=pos_weight)
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            self.optimizer, mode='min', factor=0.5, patience=5
+        )
 
-
-        # self.loss_fn = DiceCELoss(
-        #     include_background=True,
-        #     to_onehot_y=False,
-        #     sigmoid=True,
-        #     softmax=False
-        #                         )
-        # self.loss_fn = DiceFocalLoss(
-        #     sigmoid=True,
-        #     alpha=0.8,  # penalize FP
-        #     smooth_nr=1e-5,
-        #     smooth_dr=1e-5,
-        #     batch=True
-        # )
-        # self.loss_fn = MaskedDiceLoss()
-        # self.loss_fn = GeneralizedDiceLoss(
-        #     sigmoid=True,
-        #     batch=False
-        # )
-        # self.loss_fn = BCEWithLogitsLoss()
-        # self.loss_fn = BCELoss()
-
-        # bce = torch.nn.BCEWithLogitsLoss(pos_weight=torch.tensor([0.3]).to(DEVICE))
-        # dice = DiceLoss(sigmoid=True)
-        # loss = dice(y_predicted, y_mask) + 0.7 * bce(y_predicted, y_mask)
-        # self.loss_fn = DiceFocalLoss(
-        #     # include_background=True,
-        #     to_onehot_y=False,
-        #     sigmoid=True,
-        #     smooth_nr=1e-5,
-        #     smooth_dr=1e-5,
-        #     batch=True,
-        #     alpha=0.5,
-        #     gamma=2.0
-        # )
-
-    def visualize_sample(self, batches=5):
-        loader_iter = iter(self.training_loader)
-        for _ in range(batches):
-            batch = next(loader_iter)
-            self.visuals.visualize_batch(batch)
-            # self.logger.clear_tensorboard()
-
+        self.loss_fn = SegmentationLoss(pos_weight=65.0)
 
     def run_epoch(self):
         self.model.train()
-        for train_batch in self.training_loader:
+        for batch in self.training_loader:
             self.optimizer.zero_grad()
-            X_image, y_mask = train_batch
-            # Convert to GPU
+            X_image, y_mask = batch
             X_image = X_image.to(DEVICE, non_blocking=torch.cuda.is_available())
-            y_mask = y_mask.to(DEVICE, non_blocking=torch.cuda.is_available())
-            # print(f'X Shape: {X_image.shape}')
-            # print(f'Y Shape: {y_mask.shape}')
-            # Get predicted mask
-            y_predicted = self.model(X_image)
-            # print(f'Y Pred Shape: {y_predicted.shape}')
-            loss = self.loss_fn(y_predicted, y_mask)
+            y_mask  = y_mask.to(DEVICE,  non_blocking=torch.cuda.is_available())
+            loss, components = self.loss_fn(self.model(X_image), y_mask)
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
             self.optimizer.step()
             self.logger.log_epoch_loss(loss, train=True)
 
-        # Validation
         self.model.eval()
         with torch.no_grad():
-            for val_batch in self.validation_loader:
-                X_image, y_mask = val_batch
+            for batch in self.validation_loader:
+                X_image, y_mask = batch
                 X_image = X_image.to(DEVICE, non_blocking=torch.cuda.is_available())
-                y_mask = y_mask.to(DEVICE, non_blocking=torch.cuda.is_available())
-                y_predicted = self.model(X_image)
-                loss = self.loss_fn(y_predicted, y_mask)
+                y_mask  = y_mask.to(DEVICE,  non_blocking=torch.cuda.is_available())
+                loss, _ = self.loss_fn(self.model(X_image), y_mask)
                 self.logger.log_epoch_loss(loss, train=False)
 
-        avg_train_loss, avg_val_loss = self.logger.get_average_loss()
-        print(f'Epoch: {self.logger.current_epoch} Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}')
-        # Update the scheduler
-        # self.scheduler.step(avg_val_loss)
-
+        avg_train, avg_val = self.logger.get_average_loss()
+        print(f'Epoch {self.logger.current_epoch} | '
+              f'Train: {avg_train:.4f} | Val: {avg_val:.4f} | '
+              f'Seg: {components["seg"]:.4f}')
+        self.scheduler.step(avg_val)
 
     def train(self):
         for epoch in range(EPOCHS):
@@ -140,15 +75,20 @@ class Train:
         self.tester.test_model()
         self.tester.test_pulsation_mask()
 
-    def load_model(self):
-        ROOT = Path(__file__).resolve().parents[1]
-        MODEL_PATH = ROOT / 'results' / 'SVP_Seg.pth'
+    def classify_svp(self, load_model=True, target_recall=0.90):
+        from tests.classifier import SVPClassifier
+        if load_model:
+            self.load_model()   
+        self.model.eval()
+        clf = SVPClassifier(target_recall=target_recall)
+        clf.fit(self.training_loader, self.model)
+        return clf.evaluate(self.testing_loader, self.model)
 
+    def load_model(self):
+        ROOT       = Path(__file__).resolve().parents[1]
+        MODEL_PATH = ROOT / 'results' / 'SVP_Seg.pth'
         if not MODEL_PATH.exists():
             raise FileNotFoundError(f"Model checkpoint not found at: {MODEL_PATH}")
-
         self.model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
         print(f"Model loaded from: {MODEL_PATH}")
         self.model.eval()
-
-
