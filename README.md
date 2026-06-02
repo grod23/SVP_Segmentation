@@ -135,20 +135,6 @@ Instead of relying only on human observation, this system measures pulsation num
 
 ---
 
-# Performance Comparison
-
-The model is evaluated based on whether SVP is correctly detected.
-
-<table>
-<tr>
-<td align="center"><img src="README_Images/Confusion Matrix.png" width="500"><br><b>SVP Detection Results</b></td>
-</tr>
-</table>
-
-Key priority of this system: **minimize false negatives** (missing abnormal absence of SVP).
-
----
-
 # Use Case Scenario
 
 ## Primary Care or Remote Screening
